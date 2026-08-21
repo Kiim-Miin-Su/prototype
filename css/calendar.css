@@ -1,0 +1,166 @@
+/* ══════════════════════════════════════════════════════════════
+   캘린더 — 넓으면 주간 그리드, 좁으면 아젠다.
+   상자 색·테두리 규칙은 두 배치에서 동일하다.
+     빨강 미작성 · 파랑 예정 · 초록 완료 · 노랑 승인 대기 · 회색 빗금 취소
+     실선 = 대면 · 점선 = 비대면
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 상태 팔레트 (그리드·아젠다 공용) ── */
+.blk{ position:relative; border:1.5px solid; border-radius:8px; padding:4px 6px; overflow:hidden;
+  text-align:left; min-width:0; }
+.blk .bt{ font-size:10.5px; font-weight:800; letter-spacing:-.025em; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.blk .bs{ font-size:9.5px; opacity:.92; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.blk.miss  { background:var(--red-soft);   border-color:var(--red);   color:var(--red); }
+.blk.sched { background:var(--blue);       border-color:var(--blue);  color:#fff; }
+.blk.done  { background:var(--green-deep); border-color:var(--green-deep); color:#fff; }
+.blk.pend  { background:var(--amber-soft); border-color:var(--amber); color:var(--amber); }
+.blk.cancel{ background:repeating-linear-gradient(45deg,#eef2f7,#eef2f7 5px,#e2e8f0 5px,#e2e8f0 10px);
+  border-color:#cbd5e1; color:#64748b; }
+.blk.cancel .bt{ text-decoration:line-through; }
+.blk.online{ border-style:dashed; }
+.blk.fixed { background:var(--blue-soft);  border-color:var(--blue-line); color:var(--blue); }
+.blk.avail { background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+.blk.unav  { background:var(--navy);       border-color:var(--navy);  color:#fff; }
+
+/* ── 주간 그리드 (데스크톱·태블릿) ── */
+.grid{ display:flex; background:var(--raised); border:1px solid var(--line);
+  border-radius:var(--r-lg); overflow:hidden; }
+.grid .gutter{ width:50px; flex:0 0 50px; border-right:1px solid var(--line); background:var(--inset); }
+.grid .ghead{ height:42px; border-bottom:1px solid var(--line); }
+.grid .lb{ height:var(--hour-h); font-size:9.5px; color:var(--fg-subtle); text-align:right;
+  padding-right:6px; transform:translateY(-6px); }
+.grid .cols{ display:flex; flex:1; min-width:0; }
+.grid .col{ flex:1; min-width:0; border-left:1px solid var(--line); }
+.grid .col:first-child{ border-left:0; }
+.grid .chead{ height:42px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  border-bottom:1px solid var(--line); gap:1px; }
+.grid .chead .w{ font-size:9.5px; color:var(--fg-subtle); font-weight:700; }
+.grid .chead .d{ font-size:13px; font-weight:800; letter-spacing:-.02em; }
+.grid .chead.sun .d,.grid .chead.sun .w{ color:var(--red); }
+.grid .chead.today .d{ background:var(--navy); color:#fff; border-radius:8px; padding:1px 7px; }
+.grid .cbody{ position:relative; }
+.grid .cbody.closed{ background:repeating-linear-gradient(45deg,#f1f5f9,#f1f5f9 5px,#e9eef4 5px,#e9eef4 10px); }
+.grid .hl{ position:absolute; left:0; right:0; height:1px; background:var(--line); }
+.grid .blk{ position:absolute; left:3px; right:3px; z-index:3; }
+/* 현재 시각 선은 빈 칸에서만 보이게 — 수업 상자 글자를 가리지 않는다 */
+.grid .nowline{ position:absolute; left:0; right:0; height:2px; background:var(--red); z-index:2; }
+.grid .nowline::before{ content:''; position:absolute; left:-3px; top:-3px; width:8px; height:8px;
+  border-radius:50%; background:var(--red); }
+@media (max-width:860px){ .grid{ display:none; } }
+
+/* ── 주 스트립 + 아젠다 (모바일) ── */
+.agenda-wrap{ display:none; }
+@media (max-width:860px){ .agenda-wrap{ display:block; } }
+.strip{ display:flex; gap:5px; }
+.strip button{ flex:1; min-width:0; padding:9px 0; border-radius:var(--r);
+  background:var(--raised); border:1px solid var(--line);
+  display:flex; flex-direction:column; align-items:center; gap:4px; }
+.strip button i{ font-style:normal; font-size:10px; font-weight:700; color:var(--fg-subtle); }
+.strip button b{ font-size:15px; font-weight:800; letter-spacing:-.02em; }
+.strip button.sun i,.strip button.sun b{ color:var(--red); }
+.strip button.on{ background:var(--navy); border-color:var(--navy); }
+.strip button.on i{ color:#93a4bd; } .strip button.on b{ color:#fff; }
+.strip .dots{ display:flex; gap:2px; height:4px; }
+.strip .dots i{ width:4px; height:4px; border-radius:50%; }
+.agenda{ display:flex; flex-direction:column; gap:9px; }
+.ag{ display:flex; gap:10px; }
+.ag .tl{ width:46px; flex:0 0 46px; text-align:right; padding-top:13px; }
+.ag .tl b{ display:block; font-size:12.5px; font-weight:800; letter-spacing:-.02em; }
+.ag .tl i{ font-style:normal; font-size:10px; color:var(--fg-subtle); }
+.ag .blk{ flex:1; min-width:0; border-width:2px; border-radius:var(--r-lg); padding:13px; }
+.ag .blk .bt{ font-size:14px; margin-bottom:3px; white-space:normal; }
+.ag .blk .bs{ font-size:11.5px; white-space:normal; }
+.ag .blk .foot{ display:flex; align-items:center; gap:6px; margin-top:9px; flex-wrap:wrap; }
+.ag .blk .badge{ position:absolute; top:0; right:0; padding:3px 9px; font-size:9.5px; font-weight:800;
+  background:rgba(255,255,255,.22); border-bottom-left-radius:12px; }
+.ag .blk.miss .badge,.ag .blk.pend .badge,.ag .blk.cancel .badge{ background:currentColor; color:#fff; }
+.ag .blk.miss .badge{ color:#fff; background:var(--red); }
+
+/* ── 범례 ── */
+.legend{ display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+.legend .li{ display:flex; align-items:center; gap:8px; min-width:0; }
+.legend .sw{ width:22px; height:14px; flex:0 0 22px; border:2px solid; border-radius:4px; }
+.legend .n1{ font-size:11.5px; font-weight:800; }
+.legend .n2{ font-size:10.5px; color:var(--fg-subtle); }
+
+/* ── 가능·불가 표기 ── */
+.marks{ display:flex; gap:7px; flex-wrap:wrap; }
+.mk{ display:flex; align-items:center; gap:7px; padding:7px 11px; border-radius:var(--r-sm);
+  border:1.5px solid var(--line-2); background:var(--raised); font-size:11.5px; font-weight:700;
+  color:var(--fg-muted); }
+.mk .sw{ width:16px; height:13px; flex:0 0 16px; border:2px solid; border-radius:4px; }
+.mk .tx{ text-align:left; }
+.mk .tx small{ display:block; font-weight:500; font-size:10px; color:var(--fg-subtle); }
+.mk.on{ border-color:var(--navy); background:var(--subtle); color:var(--fg); }
+@media (max-width:860px){
+  .marks{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .mk{ flex-direction:column; gap:5px; padding:9px 4px; text-align:center; }
+  .mk .tx small{ display:none; }
+}
+/* 14일 리스트 (모바일) */
+.daylist{ display:flex; flex-direction:column; gap:8px; }
+.dayrow{ display:flex; gap:11px; align-items:flex-start; padding:12px 13px; border-radius:var(--r-lg);
+  background:var(--raised); border:1px solid var(--line); }
+.dayrow.lock{ background:repeating-linear-gradient(45deg,#f6f8fb,#f6f8fb 6px,#eef2f7 6px,#eef2f7 12px);
+  border-style:dashed; }
+.dayrow .dt{ width:42px; flex:0 0 42px; text-align:center; }
+.dayrow .dt b{ display:block; font-size:17px; font-weight:800; letter-spacing:-.03em; line-height:1.1; }
+.dayrow .dt i{ display:block; font-style:normal; font-size:10px; font-weight:700; color:var(--fg-subtle); }
+.dayrow .dt.sun b{ color:var(--red); }
+.dayrow .bd{ flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:5px; }
+.tag{ display:inline-flex; align-items:center; gap:4px; padding:5px 9px; border-radius:9px;
+  font-size:10.5px; font-weight:800; border:1.5px solid; }
+.tag.fx{ background:var(--blue-soft); border-color:var(--blue-line); color:var(--blue); }
+.tag.av{ background:var(--green-soft); border-color:var(--green); color:var(--green-deep); }
+.tag.un{ background:var(--navy); border-color:var(--navy); color:#fff; }
+.tag.add{ background:var(--raised); border:1.5px dashed var(--line-2); color:var(--fg-muted); }
+.tag.online{ border-style:dashed; }
+
+/* ── 수업 유형 (v20 s46) — 네모는 일반·Kinder, 마름모는 진단·모의 ──
+   실제로 프레임을 회전시키면 글자가 눕는다. 왼쪽 위 모서리를 잘라 마름모임을 알린다. */
+.blk.diamond{ border-radius:8px; }
+.blk.diamond::before{
+  content:''; position:absolute; left:-1px; top:-1px; width:12px; height:12px;
+  background:currentColor; opacity:.9;
+  clip-path:polygon(0 0, 100% 0, 0 100%);
+}
+.blk.sched.diamond::before,.blk.done.diamond::before{ background:rgba(255,255,255,.85); }
+.blk .band{ position:absolute; left:0; right:0; top:0; height:3px; }
+/* 범례용 마름모 스와치 */
+.legend .sw.diamond{ transform:rotate(45deg); border-radius:3px; width:16px; height:16px; }
+
+/* 내가 등록한 불가 시간 — 회색 빗금 배경 (v20 s11) */
+.grid .unavbg{ position:absolute; left:0; right:0; z-index:1; pointer-events:none;
+  background:repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 4px,#f1f5f9 4px,#f1f5f9 8px); }
+
+/* ── 월간 (v20 s13) ── */
+.month{ background:var(--raised); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+.mweek{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr));
+  border-bottom:1px solid var(--line); background:var(--inset); }
+.mweek span{ padding:8px 0; text-align:center; font-size:11px; font-weight:800; color:var(--fg-subtle); }
+.mweek span.sun{ color:var(--red); }
+.mgrid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.mcell{ min-height:104px; border-left:1px solid var(--line); border-top:1px solid var(--line);
+  padding:6px; display:flex; flex-direction:column; gap:3px; align-items:stretch; text-align:left; min-width:0; }
+.mcell:nth-child(7n+1){ border-left:0; }
+.mcell:hover{ background:var(--inset); }
+.mcell.empty{ background:var(--inset); pointer-events:none; }
+.mcell.unav{ background:repeating-linear-gradient(45deg,#f6f8fb,#f6f8fb 5px,#eef2f7 5px,#eef2f7 10px); }
+.mcell .mh{ display:flex; align-items:baseline; gap:5px; }
+.mcell .mh b{ font-size:12.5px; font-weight:800; letter-spacing:-.02em; }
+.mcell.sun .mh b{ color:var(--red); }
+.mcell.today .mh b{ background:var(--navy); color:#fff; border-radius:7px; padding:1px 6px; }
+.mcell .mh i{ font-style:normal; font-size:9.5px; color:var(--fg-subtle); margin-left:auto; }
+.mblk{ position:static; display:block; padding:3px 5px; border-width:1.5px; }
+.mblk .bt{ font-size:9.5px; }
+.mcell .more{ font-size:9.5px; font-weight:800; color:var(--fg-subtle); padding-left:3px; }
+@media (max-width:860px){
+  .mcell{ min-height:78px; padding:4px; }
+  .mcell .mblk .bt{ font-size:8.5px; }
+  .mcell .mh b{ font-size:11.5px; }
+}
+@media (max-width:520px){
+  .mcell{ min-height:62px; }
+  .mblk{ padding:2px 3px; }
+}

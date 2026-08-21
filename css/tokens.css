@@ -1,0 +1,92 @@
+/* ══════════════════════════════════════════════════════════════
+   TACO ERP — 강사 백오피스 · 디자인 토큰
+   한 벌의 값으로 데스크톱·태블릿·모바일을 모두 그린다.
+   ══════════════════════════════════════════════════════════════ */
+:root{
+  /* 표면 */
+  --bg:#f4f6fa;  --raised:#ffffff;  --subtle:#eef2f7;  --inset:#f8fafc;
+  --line:#e5eaf1; --line-2:#d8e0ea;
+
+  /* 글자 */
+  --fg:#0f172a;  --fg-muted:#475569;  --fg-subtle:#94a3b8;
+
+  /* 의미색 — 상자 색 규칙(빨강 미작성 · 파랑 예정 · 초록 완료 · 회색 취소) */
+  --blue:#2563eb; --blue-deep:#1d4ed8; --blue-soft:#eff5ff; --blue-line:#c9dcff;
+  --red:#e11d48;  --red-deep:#be123c;  --red-soft:#fff1f3;  --red-line:#fecdd3;
+  --green:#15803d; --green-deep:#166534; --green-soft:#f0fdf4; --green-line:#bbf7d0;
+  --amber:#b45309; --amber-soft:#fffbeb; --amber-line:#fde68a;
+  --navy:#0f172a; --navy-2:#1e293b;
+
+  /* 형태 */
+  --r-sm:10px; --r:14px; --r-lg:18px; --r-xl:22px;
+  --sh:0 1px 2px rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.06);
+  --sh-lg:0 12px 40px rgba(15,23,42,.18);
+
+  /* 안전 영역 — iPhone 15 Pro 다이내믹 아일랜드 / 홈 인디케이터 */
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+  --safe-left:env(safe-area-inset-left,0px);
+  --safe-right:env(safe-area-inset-right,0px);
+
+  /* 셸 치수 — 미디어 쿼리에서 이 값만 바꾼다 */
+  --side-w:212px;      /* 사이드바 폭 */
+  --top-h:52px;        /* 상단 바 높이 */
+  --tab-h:0px;         /* 하단 탭바 높이 (모바일에서만 > 0) */
+  --pad:18px;          /* 본문 좌우 여백 */
+  --gap:12px;          /* 블록 간격 */
+  --hour-h:34px;       /* 주간 그리드 1시간 높이 */
+
+  /* 타이포 */
+  --f-sans:'Pretendard','Noto Sans KR','Noto Sans CJK KR','Apple SD Gothic Neo',-apple-system,BlinkMacSystemFont,
+    'Segoe UI',Roboto,sans-serif;
+  --f-mono:ui-monospace,SFMono-Regular,Menlo,'Roboto Mono',monospace;
+  --t-micro:11px; --t-caption:12px; --t-body:13px; --t-section:15px; --t-title:19px;
+}
+
+/* 태블릿 — 사이드바를 아이콘 레일로 */
+@media (max-width:1180px){
+  :root{ --side-w:64px; --pad:16px; --hour-h:30px; }
+}
+/* ── 모바일 ─────────────────────────────────────────────────
+   기준 단말은 iPhone 15 Pro: 논리 해상도 393 × 852 px (DPR 3).
+   아래 px 값은 전부 393px 폭에서 읽기 좋은 값으로 맞춘 뒤,
+   위아래 단말(iPhone SE 375 / Pro Max 430)에서 깨지지 않게만 조정한다.
+   · 좌우 여백 16px  → 본문 폭 361px
+   · 탭바 49pt + 홈 인디케이터 34pt = 안전 영역 포함 83px
+   · 상단 바 52px + 다이내믹 아일랜드 안전 영역                      */
+@media (max-width:860px){
+  :root{
+    --side-w:0px;
+    --top-h:calc(52px + var(--safe-top));
+    --tab-h:calc(56px + var(--safe-bottom));
+    --pad:16px; --gap:10px;
+    --t-title:20px;          /* 393px에서 한 줄에 "김범준 님"이 여유 있게 */
+  }
+}
+/* iPhone SE·mini 등 375px 이하 — 여백만 한 칸 줄인다 */
+@media (max-width:380px){
+  :root{ --pad:13px; --t-title:19px; }
+}
+/* Pro Max·Plus 430px 이상 태블릿 미만 — 본문이 지나치게 늘어지지 않게 */
+@media (min-width:431px) and (max-width:860px){
+  :root{ --pad:20px; }
+}
+
+*,*::before,*::after{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ height:100%; margin:0; }
+body{
+  font-family:var(--f-sans); font-size:var(--t-body); line-height:1.5; letter-spacing:-.01em;
+  color:var(--fg); background:var(--bg); -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+  /* 100dvh: iOS 주소창이 접혔다 펴져도 셸 높이가 튀지 않는다 */
+  height:100dvh;
+}
+button,input,select,textarea{ font:inherit; color:inherit; }
+button{ background:none; border:0; padding:0; cursor:pointer; }
+a{ color:var(--blue); }
+h1,h2,h3,p{ margin:0; }
+.mono{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; }
+.num{ font-variant-numeric:tabular-nums; }
+.sp{ flex:1 1 auto; min-width:0; }
+.sr{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+[hidden]{ display:none !important; }

@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>TACO ERP — 강사 백오피스 (Mobile)</title>
+<style>
+:root{
+  --bg:#f4f6fa; --card:#ffffff; --sub:#eef2f7; --inset:#f8fafc;
+  --fg:#0f172a; --fgm:#475569; --fgs:#94a3b8;
+  --line:#e5eaf1; --line2:#d8e0ea;
+  --blue:#2563eb; --blue-d:#1d4ed8; --blue-s:#eff5ff;
+  --red:#e11d48; --red-s:#fff1f3; --red-l:#fecdd3;
+  --grn:#15803d; --grn-d:#166534; --grn-s:#f0fdf4; --grn-l:#bbf7d0;
+  --amb:#b45309; --amb-s:#fffbeb; --amb-l:#fde68a;
+  --navy:#0f172a; --navy2:#1e293b;
+  --r:18px; --r-lg:22px; --r-sm:12px;
+  --sh:0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.06);
+  --sh-lg:0 12px 40px rgba(15,23,42,.16);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+  background:linear-gradient(160deg,#e8edf6 0%,#f4f6fa 45%,#eef2f9 100%);
+  color:var(--fg);font-size:14px;line-height:1.5;letter-spacing:-.01em;
+  display:grid;place-items:center;min-height:100vh;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,textarea,select{font:inherit;color:inherit}
+/* ── phone frame (desktop) ── */
+.stage{display:flex;align-items:center;gap:40px;padding:28px}
+.phone{width:390px;height:844px;background:var(--bg);border-radius:46px;position:relative;overflow:hidden;
+  box-shadow:0 0 0 11px #0b1220, 0 0 0 13px #1e293b, 0 40px 90px rgba(15,23,42,.36);flex:0 0 390px}
+.notch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:112px;height:30px;background:#0b1220;
+  border-radius:20px;z-index:60}
+.statusbar{height:46px;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 5px;
+  font-size:12px;font-weight:700;color:var(--fg);position:relative;z-index:50}
+.side-note{width:300px;flex:0 0 300px}
+.side-note h1{font-size:22px;margin:0 0 6px;letter-spacing:-.02em}
+.side-note p{font-size:13px;color:var(--fgm);margin:0 0 16px;line-height:1.65}
+.side-note .k{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh)}
+.side-note .k b{display:block;font-size:12.5px;margin-bottom:2px}
+.side-note .k span{font-size:11.5px;color:var(--fgs)}
+@media(max-width:900px){
+  body{display:block}
+  .stage{padding:0;gap:0}
+  .phone{width:100%;height:100dvh;border-radius:0;box-shadow:none;flex:none}
+  .notch{display:none}.statusbar{height:env(safe-area-inset-top,20px)}
+  .app{inset:env(safe-area-inset-top,20px) 0 0}
+  .side-note{display:none}
+}
+/* ── app shell ── */
+.app{position:absolute;inset:46px 0 0;display:flex;flex-direction:column;overflow:hidden}
+.head{padding:6px 18px 10px;display:flex;align-items:center;gap:10px;flex:0 0 auto;background:transparent}
+.head.solid{background:rgba(244,246,250,.86);backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line)}
+.head .bk{width:32px;height:32px;border-radius:11px;background:#fff;display:grid;place-items:center;
+  box-shadow:var(--sh);font-size:17px;color:var(--fgm)}
+.head .ttl{font-size:19px;font-weight:800;letter-spacing:-.03em;flex:1;min-width:0}
+.head .ttl.sm{font-size:16px}
+.head .act{width:32px;height:32px;border-radius:11px;background:#fff;display:grid;place-items:center;box-shadow:var(--sh);position:relative}
+.head .act b{position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;border-radius:999px;
+  min-width:16px;height:16px;font-size:9.5px;display:grid;place-items:center;font-weight:800;border:2px solid var(--bg)}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 16px 96px;scroll-behavior:smooth}
+.scroll::-webkit-scrollbar{width:0}
+/* ── tab bar ── */
+.tabs{position:absolute;left:0;right:0;bottom:0;height:74px;display:flex;align-items:flex-start;padding:8px 10px 0;
+  background:rgba(255,255,255,.82);backdrop-filter:saturate(180%) blur(18px);border-top:1px solid var(--line);z-index:40}
+.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px 0;color:var(--fgs);position:relative}
+.tabs button .ic{font-size:19px;line-height:1}
+.tabs button span{font-size:10px;font-weight:700}
+.tabs button.on{color:var(--blue)}
+.tabs button .dot{position:absolute;top:1px;right:22px;background:var(--red);color:#fff;border-radius:999px;
+  min-width:16px;height:16px;font-size:9.5px;display:grid;place-items:center;font-weight:800}
+/* ── cards ── */
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:14px;margin-bottom:11px}
+.card.flat{box-shadow:none;border:1px solid var(--line)}
+.hero{background:linear-gradient(145deg,#111c33 0%,#0f172a 55%,#182741 100%);border-radius:var(--r-lg);
+  padding:18px;color:#fff;margin-bottom:12px;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,.22)}
+.hero::after{content:'';position:absolute;right:-40px;top:-50px;width:170px;height:170px;border-radius:50%;
+  background:radial-gradient(circle,rgba(59,130,246,.34),transparent 70%)}
+.hero .r1{display:flex;align-items:flex-end;gap:12px;position:relative;z-index:2}
+.hero .d{font-size:42px;font-weight:800;line-height:.92;letter-spacing:-.04em}
+.hero .dw{font-size:12px;color:#93a4bd;font-weight:600;padding-bottom:4px}
+.hero .clock{margin-left:auto;text-align:right}
+.hero .clock b{font-size:22px;font-weight:800;letter-spacing:-.02em;display:block;line-height:1}
+.hero .clock span{font-size:10.5px;color:#93a4bd}
+.hero .meta{margin-top:12px;display:flex;gap:8px;position:relative;z-index:2}
+.hero .mi{flex:1;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.1);border-radius:13px;padding:9px 11px}
+.hero .mi i{display:block;font-style:normal;font-size:10.5px;color:#93a4bd;margin-bottom:1px}
+.hero .mi b{font-size:15px;font-weight:800;letter-spacing:-.02em}
+/* ── section head ── */
+.sh{display:flex;align-items:center;gap:8px;margin:16px 2px 9px}
+.sh h2{font-size:15px;font-weight:800;margin:0;letter-spacing:-.02em}
+.sh .more{margin-left:auto;font-size:11.5px;color:var(--fgs);font-weight:700}
+/* ── now card ── */
+.now{background:linear-gradient(135deg,#fff5f6,#fff);border:1.5px solid var(--red-l);border-radius:var(--r);
+  padding:14px;margin-bottom:11px;position:relative;overflow:hidden;box-shadow:var(--sh)}
+.now .pulse{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red)}
+.now .lb{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;color:var(--red)}
+.now .lb i{width:6px;height:6px;border-radius:50%;background:var(--red);animation:bp 1.6s infinite}
+@keyframes bp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+/* ── list row ── */
+.row{display:flex;align-items:center;gap:11px;padding:12px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .tm{width:44px;flex:0 0 44px;text-align:center}
+.row .tm b{display:block;font-size:13.5px;font-weight:800;letter-spacing:-.02em}
+.row .tm i{font-style:normal;font-size:10px;color:var(--fgs)}
+.row .bd{flex:1;min-width:0}
+.row .bd b{display:block;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .bd span{font-size:11.5px;color:var(--fgs)}
+.row .rail{width:3px;height:34px;border-radius:2px;flex:0 0 3px}
+/* ── chips ── */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:800;border:1px solid transparent;white-space:nowrap}
+.chip.red{background:var(--red-s);color:var(--red);border-color:var(--red-l)}
+.chip.blue{background:var(--blue-s);color:var(--blue);border-color:#c9dcff}
+.chip.grn{background:var(--grn-s);color:var(--grn);border-color:var(--grn-l)}
+.chip.amb{background:var(--amb-s);color:var(--amb);border-color:var(--amb-l)}
+.chip.gray{background:var(--sub);color:var(--fgm);border-color:var(--line2)}
+.chip.solid-red{background:var(--red);color:#fff;border-color:var(--red)}
+/* ── todo pills ── */
+.todos{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.todo{background:#fff;border-radius:var(--r-sm);padding:12px;box-shadow:var(--sh);display:flex;align-items:center;gap:10px;text-align:left}
+.todo .n{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:15px;font-weight:800;flex:0 0 34px}
+.todo .n.red{background:var(--red-s);color:var(--red)}
+.todo .n.amb{background:var(--amb-s);color:var(--amb)}
+.todo .n.zero{background:var(--sub);color:var(--fgs)}
+.todo span{font-size:11.5px;font-weight:700;color:var(--fgm);line-height:1.35}
+/* ── week strip ── */
+.strip{display:flex;gap:5px;margin-bottom:12px}
+.strip button{flex:1;padding:9px 0;border-radius:14px;background:#fff;box-shadow:var(--sh);display:flex;
+  flex-direction:column;align-items:center;gap:4px;position:relative}
+.strip button i{font-style:normal;font-size:10px;color:var(--fgs);font-weight:700}
+.strip button b{font-size:15px;font-weight:800;letter-spacing:-.02em}
+.strip button.on{background:var(--navy);color:#fff}
+.strip button.on i{color:#93a4bd}
+.strip button.sun b{color:var(--red)}
+.strip button.on.sun b{color:#fff}
+.strip button .dots{display:flex;gap:2px;height:4px}
+.strip button .dots i{width:4px;height:4px;border-radius:50%}
+/* ── agenda block ── */
+.ag{display:flex;gap:10px;margin-bottom:9px}
+.ag .tl{width:46px;flex:0 0 46px;text-align:right;padding-top:13px}
+.ag .tl b{font-size:12.5px;font-weight:800;display:block;letter-spacing:-.02em}
+.ag .tl i{font-style:normal;font-size:10px;color:var(--fgs)}
+.ag .bx{flex:1;min-width:0;border-radius:var(--r);padding:13px;border:2px solid transparent;box-shadow:var(--sh);position:relative;overflow:hidden}
+.ag .bx .t{font-size:14px;font-weight:800;letter-spacing:-.02em;margin-bottom:3px}
+.ag .bx .s{font-size:11.5px;opacity:.92}
+.ag .bx .foot{display:flex;align-items:center;gap:6px;margin-top:9px}
+.ag .miss{background:var(--red-s);border-color:var(--red);color:var(--red)}
+.ag .sched{background:linear-gradient(135deg,#3b82f6,#2563eb);border-color:transparent;color:#fff}
+.ag .done{background:linear-gradient(135deg,#16a34a,#15803d);border-color:transparent;color:#fff}
+.ag .pend{background:#fff8ed;border-color:var(--amb);color:var(--amb)}
+.ag .cancel{background:repeating-linear-gradient(45deg,#eef2f7,#eef2f7 6px,#e2e8f0 6px,#e2e8f0 12px);
+  border-color:#cbd5e1;color:#64748b}
+.ag .cancel .t{text-decoration:line-through}
+.ag .online{border-style:dashed;border-color:rgba(255,255,255,.65)}
+.ag .miss.online,.ag .pend.online,.ag .cancel.online{border-color:currentColor;border-style:dashed}
+.ag .bx .badge{position:absolute;top:0;right:0;background:rgba(255,255,255,.22);padding:3px 9px;border-bottom-left-radius:12px;font-size:9.5px;font-weight:800}
+.ag .miss .badge{background:var(--red);color:#fff}
+/* ── banner ── */
+.ban{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#fff1f3,#fff);
+  border:1.5px solid var(--red-l);border-radius:var(--r);padding:13px;margin-bottom:12px;box-shadow:var(--sh)}
+.ban .ic{width:34px;height:34px;border-radius:12px;background:var(--red);color:#fff;display:grid;place-items:center;font-size:16px;font-weight:800;flex:0 0 34px}
+.ban b{font-size:13.5px;display:block;letter-spacing:-.02em}
+.ban span{font-size:11.5px;color:var(--fgm)}
+.ban .go{margin-left:auto;font-size:18px;color:var(--red)}
+/* ── sheet ── */
+.scrim{position:absolute;inset:0;background:rgba(8,15,30,.5);z-index:70;opacity:0;pointer-events:none;transition:.24s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:52px;background:var(--bg);border-radius:26px 26px 0 0;z-index:80;
+  transform:translateY(102%);transition:transform .3s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:var(--sh-lg)}
+.sheet.on{transform:translateY(0)}
+.grab{width:38px;height:4px;border-radius:999px;background:#cbd5e1;margin:9px auto 4px;flex:0 0 auto}
+.sh-head{padding:6px 18px 0;flex:0 0 auto}
+.sh-head .t{font-size:18px;font-weight:800;letter-spacing:-.03em}
+.sh-head .s{font-size:12px;color:var(--fgm);margin-top:2px}
+.sh-tabs{display:flex;gap:6px;padding:12px 18px 0;flex:0 0 auto}
+.sh-tabs button{flex:1;padding:9px 0;border-radius:12px;font-size:12px;font-weight:800;color:var(--fgm);background:var(--sub)}
+.sh-tabs button.on{background:var(--navy);color:#fff}
+.sh-tabs button:disabled{opacity:.4}
+.sh-body{flex:1;overflow-y:auto;padding:14px 18px 20px}
+.sh-foot{padding:12px 18px calc(16px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--line);display:flex;gap:9px;flex:0 0 auto}
+/* ── buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:13px 16px;border-radius:14px;
+  font-size:14px;font-weight:800;background:#fff;box-shadow:var(--sh);letter-spacing:-.02em}
+.btn.pri{background:var(--blue);color:#fff;box-shadow:0 6px 18px rgba(37,99,235,.34)}
+.btn.go{background:var(--grn);color:#fff;box-shadow:0 6px 18px rgba(21,128,61,.3)}
+.btn.dan{background:var(--red);color:#fff;box-shadow:0 6px 18px rgba(225,29,72,.3)}
+.btn.ghost{background:var(--sub);box-shadow:none;color:var(--fgm)}
+.btn.sm{padding:9px 12px;font-size:12px;border-radius:11px}
+.btn.full{width:100%}
+.btn:disabled{opacity:.45;box-shadow:none}
+/* ── form ── */
+.fld{margin-bottom:12px}
+.fld label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;margin-bottom:7px;letter-spacing:-.02em}
+.fld .n{width:19px;height:19px;border-radius:6px;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:10px;font-weight:800}
+.fld input,.fld textarea,.fld select{width:100%;padding:13px;border:1.5px solid var(--line2);border-radius:14px;
+  background:#fff;font-size:13.5px}
+.fld textarea{min-height:130px;resize:none;line-height:1.65}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px var(--blue-s)}
+.fld .ro{background:var(--sub);border-color:transparent;color:var(--fgm)}
+.fld .bad{border-color:var(--red);background:var(--red-s)}
+.cnt{font-size:11.5px;font-weight:800;margin-top:6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cnt .v.bad{color:var(--red)}.cnt .v.ok{color:var(--grn)}
+.bkchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.bkchip{padding:8px 12px;border-radius:999px;background:var(--blue-s);border:1px solid #c9dcff;color:var(--blue);font-size:11.5px;font-weight:800}
+.bkchip.add{background:#fff;border:1px dashed var(--line2);color:var(--fgm)}
+.rules{background:var(--navy);border-radius:16px;padding:13px;color:#cbd5e1;font-size:11.5px}
+.rules>b:first-child{color:#fff;display:block;margin-bottom:7px;font-size:12.5px}
+.rules b{color:#fff}
+.rules .r{display:flex;gap:8px;margin-bottom:6px}
+.rules .r i{font-style:normal;background:#334155;color:#fff;border-radius:5px;min-width:17px;height:17px;
+  display:grid;place-items:center;font-size:9.5px;font-weight:800;flex:0 0 17px}
+.rules .ex{border-top:1px solid #334155;margin-top:8px;padding-top:8px;line-height:1.6}
+.rules .ex .no{color:#fda4af}.rules .ex .ok{color:#86efac}
+.ai{background:var(--navy);border-radius:16px;overflow:hidden;margin-top:12px}
+.ai .h{display:flex;align-items:center;gap:9px;padding:13px}
+.ai .h b{color:#fff;font-size:12.5px;flex:1}
+.ai pre{margin:0;padding:12px 13px;background:#080f1e;color:#cbd5e1;font-size:10.5px;line-height:1.6;
+  max-height:150px;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace}
+/* ── misc ── */
+.warn{background:var(--amb-s);border:1px solid var(--amb-l);border-radius:14px;padding:12px;font-size:12px;margin-bottom:11px}
+.warn>b:first-child{color:var(--amb);display:block;margin-bottom:3px;font-size:12.5px}
+.err{background:var(--red-s);border:1.5px solid var(--red-l);border-radius:14px;padding:12px;font-size:12px;margin-bottom:11px}
+.err>b:first-child{color:var(--red);display:block;margin-bottom:3px;font-size:12.5px}
+.ok{background:var(--grn-s);border:1px solid var(--grn-l);border-radius:14px;padding:12px;font-size:12px;margin-bottom:11px}
+.ok>b:first-child{color:var(--grn);display:block;margin-bottom:3px;font-size:12.5px}
+.tip{background:var(--navy);color:#cbd5e1;border-radius:14px;padding:12px;font-size:11.5px;line-height:1.6}
+.tip>b:first-child{color:#fff;display:block;margin-bottom:3px;font-size:12.5px}
+.seg2{display:flex;background:var(--sub);border-radius:13px;padding:3px;margin-bottom:12px}
+.seg2 button{flex:1;padding:9px 0;border-radius:10px;font-size:12.5px;font-weight:800;color:var(--fgm)}
+.seg2 button.on{background:#fff;color:var(--fg);box-shadow:var(--sh)}
+.menu{background:#fff;border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:11px}
+.menu button{width:100%;display:flex;align-items:center;gap:12px;padding:15px;border-top:1px solid var(--line);text-align:left}
+.menu button:first-child{border-top:0}
+.menu button .ic{width:36px;height:36px;border-radius:12px;background:var(--blue-s);color:var(--blue);
+  display:grid;place-items:center;font-size:16px;flex:0 0 36px}
+.menu button .tx{flex:1;min-width:0}
+.menu button .tx b{display:block;font-size:13.5px;font-weight:700}
+.menu button .tx span{font-size:11.5px;color:var(--fgs)}
+.menu button .ar{color:var(--fgs);font-size:17px}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
+.stat .s{background:#fff;border-radius:var(--r-sm);padding:13px;box-shadow:var(--sh)}
+.stat .s i{font-style:normal;font-size:11px;color:var(--fgm);font-weight:700}
+.stat .s b{display:block;font-size:20px;font-weight:800;letter-spacing:-.03em;margin:3px 0 1px}
+.stat .s span{font-size:10.5px;color:var(--fgs)}
+.stat .s.grn{background:var(--grn-s)}.stat .s.red{background:var(--red-s)}.stat .s.blue{background:var(--blue-s)}
+.pay{background:var(--navy);border-radius:var(--r);padding:16px;color:#e2e8f0;margin-bottom:11px}
+.pay .l{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #1e293b;font-size:12.5px}
+.pay .l b{font-weight:800}
+.pay .tot{display:flex;justify-content:space-between;align-items:baseline;padding-top:13px}
+.pay .tot span{font-size:13px}
+.pay .tot b{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.03em}
+.bars{display:flex;gap:3px}
+.bar{width:17px;height:7px;border-radius:2px;background:#e2e8f0}
+.bar.low{background:#ea580c}.bar.mid{background:var(--blue)}.bar.high{background:var(--grn)}
+.pctc{background:#fff;border:1.5px solid #c9dcff;border-radius:var(--r-sm);padding:12px;text-align:center}
+.pctc b{display:block;font-size:22px;font-weight:800;letter-spacing:-.03em}
+.pctc i{font-style:normal;font-size:10.5px;color:var(--fgm);font-weight:700}
+.pctbar{height:6px;border-radius:999px;background:#e8eef7;overflow:hidden;margin:7px 0 4px}
+.pctbar em{display:block;height:100%;border-radius:999px}
+.toast{position:absolute;left:16px;right:16px;bottom:92px;background:var(--navy);color:#fff;padding:13px 16px;
+  border-radius:15px;font-size:12.5px;font-weight:600;z-index:95;opacity:0;transform:translateY(12px);
+  transition:.25s;pointer-events:none;box-shadow:var(--sh-lg);text-align:center}
+.toast.on{opacity:1;transform:translateY(0)}
+.empty{text-align:center;padding:38px 20px;color:var(--fgs)}
+.empty .e{font-size:34px;margin-bottom:10px}
+.empty b{display:block;font-size:14px;color:var(--fgm);margin-bottom:4px}
+.empty span{font-size:12px}
+
+/* ══ 대표 피드백 ① 정책은 맨 위 · ② 차감은 그 위에 더 크게 ══ */
+.pen{background:linear-gradient(140deg,#7f1d1d 0%,#be123c 62%,#e11d48 100%);border-radius:var(--r);padding:14px;
+  color:#fff;margin-bottom:9px;box-shadow:0 10px 26px rgba(190,18,60,.26)}
+.pen .lead{font-size:16px;font-weight:900;letter-spacing:-.035em;line-height:1.28}
+.pen .sub{font-size:11.5px;color:#fecdd3;margin-top:4px;line-height:1.55}
+.pen .sub b{color:#fff}
+.pen .cs{display:flex;gap:7px;margin-top:11px}
+.pen .c{flex:1;background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.22);border-radius:13px;padding:9px 5px;text-align:center}
+.pen .c i{font-style:normal;display:block;font-size:9.5px;color:#fecdd3;font-weight:700;letter-spacing:-.02em}
+.pen .c b{display:block;font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:-.05em;margin-top:2px}
+.pen .c.ok{background:rgba(22,101,52,.46);border-color:rgba(187,247,208,.4)}
+.pen .c.ok i,.pen .c.ok>b:first-child{color:#bbf7d0}
+.pen.mini{padding:11px 13px;display:flex;align-items:center;gap:10px}
+.pen.mini .lead{font-size:13.5px;letter-spacing:-.045em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pen.mini .cs{margin:0 0 0 auto;flex:0 0 auto;gap:6px}
+.pen.mini .c{padding:6px 9px;min-width:0}
+.pen.mini .c b{font-size:13.5px}
+.pen.mini .c i{font-size:9px}
+.pen.mini .sub{font-size:10.5px;margin-top:1px;white-space:nowrap}
+.pol{background:var(--navy);border-radius:var(--r);padding:13px;color:#cbd5e1;font-size:11.5px;line-height:1.62;margin-bottom:11px}
+.pol .tg{display:inline-block;background:#facc15;color:#422006;font-weight:900;font-size:9.5px;border-radius:6px;
+  padding:3px 7px;margin-bottom:7px;letter-spacing:.03em}
+.pol b{color:#fff}.pol .no{color:#fda4af;font-weight:800}.pol .yes{color:#86efac;font-weight:800}
+.pol .fold{display:block;margin-top:8px;color:#7dd3fc;font-size:11px;font-weight:800}
+/* ── 가능·불가 표기 ── */
+.mk{display:flex;gap:6px;margin-bottom:11px}
+.mk button{flex:1;padding:10px 4px;border-radius:13px;background:#fff;box-shadow:var(--sh);display:flex;
+  flex-direction:column;align-items:center;gap:5px;font-size:11px;font-weight:800;color:var(--fgm)}
+.mk button .sw{width:20px;height:12px;border-radius:4px;border:2px solid}
+.mk button.on{background:var(--navy);color:#fff}
+.dayrow{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:12px 13px;margin-bottom:8px;display:flex;gap:11px;align-items:flex-start}
+.dayrow.lock{background:repeating-linear-gradient(45deg,#f6f8fb,#f6f8fb 6px,#eef2f7 6px,#eef2f7 12px);box-shadow:none}
+.dayrow .dt{width:44px;flex:0 0 44px;text-align:center}
+.dayrow .dt b{display:block;font-size:17px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.dayrow .dt i{display:block;font-style:normal;font-size:10px;color:var(--fgs);font-weight:700}
+.dayrow .dt.sun b{color:var(--red)}
+.dayrow .bd{flex:1;min-width:0}
+.tagset{display:flex;flex-wrap:wrap;gap:5px}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border-radius:9px;font-size:10.5px;font-weight:800;border:1.5px solid}
+.tag.av{background:var(--grn-s);border-color:var(--grn);color:var(--grn-d)}
+.tag.av.on{border-style:dashed}
+.tag.un{background:var(--navy);border-color:var(--navy);color:#fff}
+.tag.fx{background:var(--blue-s);border-color:#93b4fc;color:var(--blue)}
+.tag.fx.on{border-style:dashed}
+.tag.add{background:#fff;border:1.5px dashed var(--line2);color:var(--fgm)}
+.lockcard{background:repeating-linear-gradient(45deg,#f6f8fb,#f6f8fb 6px,#eef2f7 6px,#eef2f7 12px);
+  border:1px dashed var(--line2);border-radius:var(--r);padding:13px;display:flex;gap:11px;align-items:center;margin-bottom:11px}
+.lockcard .ic{width:32px;height:32px;border-radius:11px;background:#cbd5e1;color:#475569;display:grid;place-items:center;font-size:14px;flex:0 0 32px}
+.lockcard .tx b{display:block;font-size:12.5px}
+.lockcard>div>b{display:block;font-size:12.5px}
+.lockcard span{font-size:11px;color:var(--fgs);line-height:1.5}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="statusbar"><span>15:35</span><span>‎ ⬤⬤⬤  ᯤ  🔋</span></div>
+    <div class="app"><div id="app"></div></div>
+    <div class="scrim" id="scrim" onclick="closeSheet()"></div>
+    <div class="sheet" id="sheet"></div>
+    <div class="toast" id="toast"></div>
+  </div>
+  <div class="side-note">
+    <h1>강사 백오피스 · 모바일</h1>
+    <p>수업 직전·직후에 휴대폰으로 여는 흐름에 맞춰 다시 그렸습니다. 데스크톱 7개 메뉴를 하단 탭 4개로 접고, 주간 시간표는 아젠다로 바꿨습니다.</p>
+    <div class="k"><b>하단 탭 4개</b><span>홈 · 캘린더 · 리포트 · 더보기</span></div>
+    <div class="k"><b>시간표 대신 아젠다</b><span>주 스트립에서 날짜를 고르고 하루를 세로로 읽습니다</span></div>
+    <div class="k"><b>색·테두리 규칙 유지</b><span>빨강 미작성 · 파랑 예정 · 초록 완료 · 회색 빗금 취소 / 점선 = 비대면</span></div>
+    <div class="k"><b>리포트는 풀시트</b><span>60자·세 요소 검증과 교재 Full Name 규칙 그대로</span></div>
+  </div>
+</div>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   TACO ERP — 강사 백오피스 프로토타입
+   기준: 강사 백오피스 전체 화면과 기능 상세 · 최종본 (40쪽)
+   ══════════════════════════════════════════════════════════════ */
+const TODAY='2026-08-21', NOW_MIN=15*60+35, HIRE='2026-06-01';
+const ME={name:'김범준', role:'강사', rate:45000, rateFrom:'2026-07-01'};
+
+const toMin=t=>{const[h,m]=t.split(':').map(Number);return h*60+m};
+const fromMin=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const wdOf=iso=>new Date(iso+'T00:00:00Z').getUTCDay();
+const WD=['일','월','화','수','목','금','토'];
+const monOf=iso=>addDays(iso, wdOf(iso)===0?-6:1-wdOf(iso));
+const diffDays=(a,b)=>Math.round((new Date(b+'T00:00:00Z')-new Date(a+'T00:00:00Z'))/86400000);
+const won=n=>'₩'+Number(n).toLocaleString('ko-KR');
+const md=iso=>`${+iso.slice(5,7)}월 ${+iso.slice(8,10)}일`;
+const mdw=iso=>`${md(iso)} (${WD[wdOf(iso)]})`;
+
+/* ── 학생 (수업 안내 원본 · 관리자가 채우고 강사는 읽는다) ── */
+const STU=[
+ {id:1,name:'양찬욱',grade:'G10',subject:'SAT Reading & Writing',freq:'주 1회',
+  intensity:'엄격하게',lang:'영어 + 한국어',
+  alert:'9월 SAT 응시 예정입니다. 8월 말까지 Week 8 진도를 마쳐야 합니다.',
+  teaching:'문법은 답을 바로 주지 마시고 근거 문장을 소리 내어 읽게 하세요. 인터뷰 58%, 어휘 66%가 가장 급합니다. 채팅이 아니라 말하게 해 주세요.',
+  books:[{sub:'SAT Reading & Writing',items:[
+     {n:'SAT Reading and Writing Week 6 · Student Edition',sz:'2.4MB',from:'08-11',st:'사용 중'},
+     {n:'SAT Reading and Writing Week 6 · Teacher Edition',sz:'2.8MB',from:'08-11',st:'사용 중'},
+     {n:'SAT Reading and Writing Vocabulary Quiz 11',sz:'0.6MB',from:'08-13',st:'사용 중',isNew:true}]}],
+  history:[{n:'SAT Reading and Writing Week 5',sz:'2.3MB',span:'07-28 ~ 08-10',by:'Week 6(으)로 교체',tag:'교재 완료',tone:'green'},
+           {n:'SAT Foundations Reading Level 2',sz:'1.9MB',span:'06-15 ~ 07-27',by:'SAT Reading and Writing Week 5(으)로 교체',tag:'너무 쉬움',tone:'blue'}],
+  style:{영어:[['문법',3],['리딩',2],['라이팅',2]],수학:[['계산',2],['영어 용어',1],['개념',2]],인터뷰:[['단어 다양성',2],['유창성',3],['표현',2]]},
+  diag:{English:78,Math:64,Interview:71}},
+ {id:2,name:'고은성',grade:'G11',subject:'AP World History',freq:'주 2회',
+  intensity:'북돋우며',lang:'영어로만 수업',
+  alert:'11월 AP 모의고사 전까지 Unit 6까지 마쳐야 합니다.',
+  teaching:'연도 암기보다 인과관계를 먼저 잡아 주세요. 타임라인을 직접 그리게 하면 훨씬 잘 따라옵니다.',
+  books:[{sub:'AP World History',items:[
+     {n:'AP World History Unit 5',sz:'3.1MB',from:'08-05',st:'사용 중'},
+     {n:'AP World History Unit 5 Timeline',sz:'0.9MB',from:'08-05',st:'사용 중'}]}],
+  history:[{n:'AP World History Unit 4',sz:'3.0MB',span:'07-10 ~ 08-04',by:'Unit 5(으)로 교체',tag:'교재 완료',tone:'green'}],
+  style:{영어:[['문법',2],['리딩',3],['라이팅',2]],수학:[['계산',2],['영어 용어',2],['개념',2]],인터뷰:[['단어 다양성',3],['유창성',2],['표현',3]]},
+  diag:{English:84,Math:59,Interview:76}},
+ {id:3,name:'고은설',grade:'G8',subject:'ELA Intermediate',freq:'주 1회',
+  intensity:'유연하게',lang:'영어 + 한국어',
+  alert:null,
+  teaching:'짧은 지문을 여러 개 읽히기보다 한 지문을 끝까지 붙잡게 해 주세요. 어휘는 문맥에서 추론시키세요.',
+  books:[{sub:'ELA Intermediate',items:[
+     {n:'ELA Intermediate Set 7 · Reading',sz:'2.2MB',from:'08-13',st:'사용 중'},
+     {n:'ELA Intermediate Grammar Drill 7',sz:'0.5MB',from:'08-13',st:'사용 중'}]},
+    {sub:'Literature & Writing',items:[
+     {n:'Between the Lines Week 8',sz:'2.9MB',from:'08-16',st:'사용 중',isNew:true}]}],
+  history:[{n:'ELA Advanced Set 2 · Reading',sz:'2.6MB',span:'07-16 ~ 08-12',by:'ELA Intermediate Set 7(으)로 교체',tag:'너무 어려움',tone:'amber'},
+           {n:'Between the Lines Week 7',sz:'2.8MB',span:'08-09 ~ 08-15',by:'Week 8(으)로 교체',tag:'교재 완료',tone:'green'}],
+  style:{영어:[['문법',2],['리딩',2],['라이팅',1]],수학:[['계산',3],['영어 용어',1],['개념',2]],인터뷰:[['단어 다양성',1],['유창성',2],['표현',2]]},
+  diag:{English:66,Math:81,Interview:58}},
+ {id:4,name:'이담흔',grade:'G8',subject:'MAP Reading G8, Pre-Algebra',freq:'주 1회',
+  intensity:'북돋우며',lang:'한국어만 사용',
+  alert:null,
+  teaching:'영어 용어에서 자주 막힙니다. 용어를 한국어로 한 번 풀어 준 뒤 영어로 다시 말하게 해 주세요.',
+  books:[{sub:'MAP Reading G8',items:[
+     {n:'MAP Growth Reading Grade 8 Set 4',sz:'1.8MB',from:'08-06',st:'사용 중'}]},
+    {sub:'Pre-Algebra',items:[
+     {n:'Pre-Algebra Chapter 5 Workbook',sz:'2.1MB',from:'08-02',st:'사용 중'}]}],
+  history:[],
+  style:{영어:[['문법',1],['리딩',2],['라이팅',1]],수학:[['계산',3],['영어 용어',1],['개념',3]],인터뷰:[['단어 다양성',2],['유창성',2],['표현',1]]},
+  diag:{English:57,Math:88,Interview:62}},
+];
+const stu=id=>STU.find(s=>s.id===id);
+
+/* ── 수업 (관리자가 만들고 강사는 본다) ── */
+let SEQ=100;
+const S=(date,st,dur,subject,studentId,mode,report,extra={})=>({
+  id:SEQ++, date, start:st, dur, subject, studentId, mode,   // mode: 대면 | 비대면
+  report,                       // none | draft | submitted | approved
+  canceled:extra.canceled||null, // {by,at,reason,makeup}
+  submittedAt:extra.submittedAt||null,
+  content:extra.content||'', progress:extra.progress||'', homework:extra.homework||'',
+  note:extra.note||null, chain:extra.chain||null,
+});
+const SESS=[
+ // 지난 주
+ S('2026-08-08','15:00',120,'MAP Reading G8',4,'비대면','approved',{submittedAt:'2026-08-08 17:40'}),
+ S('2026-08-11','17:00',120,'SAT Reading & Writing',1,'대면','approved',{submittedAt:'2026-08-11 19:30'}),
+ S('2026-08-12','16:00',120,'AP World History',2,'대면','approved',{submittedAt:'2026-08-12 18:50'}),
+ S('2026-08-13','18:00',120,'ELA Intermediate',3,'비대면','approved',{submittedAt:'2026-08-13 21:10'}),
+ S('2026-08-14','15:00',120,'MAP Reading G8',4,'비대면','approved',{submittedAt:'2026-08-14 17:20'}),
+ // 이번 주 (8/16 ~ 8/22)
+ S('2026-08-17','19:00',90,'Pre-Algebra',4,'비대면','none'),                          // 빨강 · 리포트 미작성
+ S('2026-08-18','17:00',120,'SAT Reading & Writing',1,'대면','approved',{submittedAt:'2026-08-18 19:35'}),
+ S('2026-08-19','16:00',120,'AP World History',2,'대면','none'),                       // 빨강 · 리포트 미작성
+ S('2026-08-19','19:00',90,'Pre-Algebra',4,'비대면','none',
+   {canceled:{by:'관리자 김민성',at:'08-19 13:40',reason:'학생 병결로 취소되었습니다. 보강은 8월 25일 19시로 잡혔습니다.',makeup:'8월 25일 (화) 19:00'}}),
+ S('2026-08-20','18:00',120,'ELA Intermediate',3,'비대면','submitted',{submittedAt:'2026-08-20 20:30'}), // 승인 대기
+ S('2026-08-21','15:00',120,'MAP Reading G8',4,'비대면','none'),                        // 오늘 진행 중
+ S('2026-08-21','19:00',120,'AP World History',2,'대면','none'),                        // 오늘 예정
+ S('2026-08-22','17:00',120,'SAT Reading & Writing',1,'대면','none',
+   {canceled:{by:'관리자 김민성',at:'08-20 09:12',reason:'학생 가족 일정으로 취소되었습니다.',makeup:null}}),
+ // 다음 주 (예정)
+ S('2026-08-25','19:00',90,'Pre-Algebra',4,'비대면','none'),
+ S('2026-08-26','16:00',120,'AP World History',2,'대면','none'),
+ S('2026-08-27','18:00',120,'ELA Intermediate',3,'비대면','none'),
+ S('2026-08-28','15:00',120,'MAP Reading G8',4,'비대면','none'),
+ S('2026-08-29','17:00',120,'SAT Reading & Writing',1,'대면','none'),
+ S('2026-09-01','17:00',120,'SAT Reading & Writing',1,'대면','none'),
+ S('2026-09-02','16:00',120,'AP World History',2,'대면','none'),
+];
+
+/* ── 불가 시간 (강사 등록) ── */
+const UNAV=[
+ {id:0,date:'2026-08-20',start:'09:00',end:'12:00',reason:'매주 목요일 오전은 대학원 세미나입니다. 학기 중에는 매주 반복되며 조정이 어렵습니다.'},
+ {id:1,date:'2026-08-31',start:'09:00',end:'13:00',reason:'매주 월요일 오전은 대학원 수업입니다. 온라인 실시간 강의라 출석이 학점에 반영되어 조정이 어렵습니다.'},
+ {id:2,date:'2026-09-03',start:'18:00',end:'23:00',reason:'학기 말 논문 심사 준비로 저녁 시간 전체가 막힙니다. 9월 첫째 주까지만 해당됩니다.'},
+];
+
+/* ── 건의 사항 (월 3회) ── */
+const FEEDBACK=[
+ {id:1,cat:'스케줄 관련',at:'7월 28일 (수)',body:'화요일 16시 수업과 목요일 19시 수업 사이 이동 시간이 빠듯합니다. 화요일 수업을 16시 30분으로 30분만 미룰 수 있을까요?',
+  status:'답변 완료',reply:{by:'관리자 김민성',at:'7월 29일 (목)',body:'확인했습니다. 8월 첫째 주부터 16시 30분으로 조정해 두었습니다. 학부모 안내도 완료했습니다.'}},
+ {id:2,cat:'수업 관련',at:'8월 12일 (수)',body:'고은설 학생 ELA 교재가 학생 수준에 비해 어려워 보입니다. 한 단계 낮은 세트로 교체 가능한지 검토 부탁드립니다.',
+  status:'확인 중',reply:null},
+ {id:3,cat:'시급 관련',at:'8월 18일 (화)',body:'8월 3일 보강 수업 2시간이 정산에 반영되었는지 확인 부탁드립니다.',
+  status:'접수됨',reply:null},
+];
+let FEED_SEQ=4;
+
+/* ── 파생 규칙 ────────────────────────────────────────────── */
+const endMin=s=>toMin(s.start)+s.dur;
+const endTime=s=>fromMin(endMin(s));
+const isCanceled=s=>!!s.canceled;
+const isPast=s=> s.date<TODAY || (s.date===TODAY && endMin(s)<=NOW_MIN);
+const isNow=s=> s.date===TODAY && toMin(s.start)<=NOW_MIN && endMin(s)>NOW_MIN && !isCanceled(s);
+// 색 규칙(p.10): 빨강=리포트 미작성 · 파랑=수업 예정 · 초록=리포트 작성 완료 · 회색빗금=취소
+function blockState(s){
+  if(isCanceled(s)) return 'cancel';
+  if(s.report==='approved') return 'done';
+  if(s.report==='submitted') return 'pend';
+  if(isPast(s)) return 'miss';          // 끝났는데 안 씀 → 빨강
+  return 'sched';                        // 아직 안 한 수업 → 파랑
+}
+const missingReports = ()=>SESS.filter(s=>!isCanceled(s)&&isPast(s)&&(s.report==='none'||s.report==='draft'));
+const pendingReports = ()=>SESS.filter(s=>!isCanceled(s)&&s.report==='submitted');
+// 스케줄 변경 D-일수 (p.13): 수업 10일 전까지만 요청 가능
+const dDay=s=>diffDays(TODAY,s.date);
+const canRequestChange=s=>!isCanceled(s) && dDay(s)>=10;
+const EARLIEST_CHANGE=addDays(TODAY,10);
+// 불가 시간 (p.17): 최소 1주 전 = 오늘+7일부터
+const UNAV_OPEN=addDays(TODAY,7);
+// 지각 차감 (p.34): 종료 후 1h 이내 0 · 1~3h −5,000 · 4h 이후 −10,000
+function latePenalty(s){
+  if(!s.submittedAt) return 0;
+  const end=new Date(`${s.date}T${endTime(s)}:00+09:00`);
+  const sub=new Date(s.submittedAt.replace(' ','T')+':00+09:00');
+  const h=(sub-end)/3600000;
+  if(h<=1) return 0;
+  if(h<4) return 5000;
+  return 10000;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   2026-08-21 대표 피드백 반영 (PPT 빨간 메모 3건)
+   ① 강사가 캘린더에서 할 수 있는 것은 "표기"뿐 — 수업 가능 시간(대면/비대면)과
+      불가능한 시간만 표기한다. 이미 확정된 수업 슬롯에는 불가 표시를 할 수 없다.
+      → 정책은 각 화면 맨 위에 명시한다.
+   ② 리포트 미작성 시 강의료 차감은 가장 중요한 정책 — 정책 바 위에, 집중되는 폰트로.
+   ③ 수업/급여 히스토리는 "직전 급여 1건 + 그 급여에 포함된 수업"만 강사에게 보인다.
+      (DB에는 계속 보관하고, 매니저 이상은 전체 기간을 조회한다.)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── ② 리포트 지각 차감 규칙 (한 곳에서만 정의) ── */
+const PENALTY_RULE=[
+  {when:'수업 종료 후 1시간 이내', amount:0,     tone:'ok',   say:'차감 없음'},
+  {when:'1시간이 지나면',           amount:5000,  tone:'warn', say:'− 5,000원'},
+  {when:'4시간이 지나면',           amount:10000, tone:'bad',  say:'− 10,000원'},
+];
+const PENALTY_LINE='리포트를 늦게 쓰면 강의료가 깎입니다. 차감이 붙어도 리포트는 반드시 써야 합니다.';
+
+/* ── ① 가능 시간 (강사가 직접 표기 · 대면/비대면) ── */
+const AVAIL=[
+ {id:0,date:'2026-08-24',start:'13:00',end:'18:00',mode:'대면'},
+ {id:1,date:'2026-08-25',start:'09:00',end:'12:00',mode:'비대면'},
+ {id:2,date:'2026-08-27',start:'14:00',end:'19:00',mode:'비대면'},
+ {id:3,date:'2026-08-29',start:'10:00',end:'16:00',mode:'대면'},
+];
+let AV_SEQ=4, UN_SEQ=3;
+/* 확정 수업(취소 제외)이 겹치는가 — 불가 표시를 막는 유일한 근거 */
+const fixedIn=(date,a,b)=>SESS.filter(s=>s.date===date&&!isCanceled(s)&&a<endMin(s)&&toMin(s.start)<b);
+const MARKS=[
+  {key:'대면',   label:'가능 · 대면',   hint:'학원에서 할 수 있는 시간', color:'#15803d', dash:false},
+  {key:'비대면', label:'가능 · 비대면', hint:'줌으로 할 수 있는 시간',   color:'#15803d', dash:true },
+  {key:'불가',   label:'불가',          hint:'수업을 넣지 말아 주세요',  color:'#0f172a', dash:false},
+];
+
+/* ── ③ 급여(정산) — 강사가 볼 수 있는 범위 ── */
+const OPEN_PERIOD='2026-08';                                  // 진행 중 · 아직 급여가 아님
+const PAYOUTS=[                                                // 최신순 (DB에는 전부 남아 있다)
+ {period:'2026-07', label:'7월분 급여', paidAt:'2026-08-10', status:'지급 완료'},
+ {period:'2026-06', label:'6월분 급여', paidAt:'2026-07-10', status:'지급 완료'},
+];
+const LAST_PAYOUT=PAYOUTS[0];                                  // 강사에게 열리는 유일한 급여
+const LOCKED_PAYOUTS=PAYOUTS.slice(1);                         // 매니저 이상만 조회
+const canSeePeriod=p=>p===LAST_PAYOUT.period||p===OPEN_PERIOD;
+
+/* ── 직전 급여(7월분)에 포함된 수업 시드 — 전부 승인 완료 ── */
+(function seedPrevPayout(){
+  // 7월 정규 시간표: 화 SAT · 수 AP · 목 ELA · 금 MAP
+  const plan={2:['17:00',120,'SAT Reading & Writing',1,'대면'],
+              3:['16:00',120,'AP World History',2,'대면'],
+              4:['18:00',120,'ELA Intermediate',3,'비대면'],
+              5:['15:00',120,'MAP Reading G8',4,'비대면']};
+  const late={'2026-07-14':2.5,'2026-07-24':5};   // 5,000원 · 10,000원 차감 사례 각 1건
+  for(let d='2026-07-01'; d<='2026-07-31'; d=addDays(d,1)){
+    const p=plan[wdOf(d)]; if(!p) continue;
+    const over=late[d]||0.5;                       // 기본은 종료 30분 뒤 제출(정시)
+    const at=fromMin(toMin(p[0])+p[1]+Math.round(over*60));
+    SESS.push(S(d,p[0],p[1],p[2],p[3],p[4],'approved',{submittedAt:`${d} ${at}`}));
+  }
+})();
+
+/* 기간 정산 계산 — 히스토리/급여 카드가 같은 함수를 쓴다 */
+function settle(period){
+  const list=SESS.filter(s=>s.date.startsWith(period)).sort((a,b)=>b.date.localeCompare(a.date)||b.start.localeCompare(a.start));
+  const held=list.filter(s=>!isCanceled(s)&&isPast(s));
+  const done=held.filter(s=>s.report==='approved'||s.report==='submitted');
+  const miss=held.filter(s=>s.report==='none'||s.report==='draft');
+  const doneH=done.reduce((a,s)=>a+s.dur,0)/60, missH=miss.reduce((a,s)=>a+s.dur,0)/60;
+  const gross=doneH*ME.rate;
+  const pen=done.reduce((a,s)=>a+latePenalty(s),0);
+  const penCnt=done.filter(s=>latePenalty(s)>0).length;
+  const tax=Math.round((gross-pen)*0.033);
+  const future=list.filter(s=>!isCanceled(s)&&!isPast(s));
+  return {period,list,held,done,miss,doneH,missH,gross,pen,penCnt,tax,net:gross-pen-tax,future};
+}
+
+/* ② 지금 이 수업의 차감 상태 — 리포트 화면에서 실시간으로 보여 준다 */
+const nowTs=()=>new Date(`${TODAY}T${fromMin(NOW_MIN)}:00+09:00`);
+function penaltyNow(s){
+  const end=new Date(`${s.date}T${endTime(s)}:00+09:00`);
+  const h=(nowTs()-end)/3600000;
+  if(h<=0) return {amount:0,tone:'ok',  head:'수업이 끝난 뒤 1시간 안에 쓰면 차감이 없습니다', left:null};
+  if(h<1)  return {amount:0,tone:'ok',  head:'지금 제출하면 차감이 없습니다',                 left:Math.round((1-h)*60)};
+  if(h<4)  return {amount:5000,tone:'warn',head:'지금 제출하면 5,000원이 깎입니다',            left:Math.round((4-h)*60)};
+  return     {amount:10000,tone:'bad', head:'지금 제출하면 10,000원이 깎입니다',              left:null};
+}
+</script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   TACO ERP — 강사 백오피스 · 모바일
+   데스크톱 7개 메뉴를 하단 탭 4개(홈·캘린더·리포트·더보기)로 접었다.
+   도메인 규칙(색·테두리·차감·10일·1주·15자·60자)은 데스크톱과 같은 함수를 쓴다.
+   ══════════════════════════════════════════════════════════════ */
+const UI={
+  tab:'home', sub:null, day:TODAY, weekStart:monOf(TODAY),
+  calSeg:'my', markMode:'대면', markStart:'2026-08-24',
+  sheet:null, stab:'report', guideSel:1, histTab:'last',
+  form:{}, chg:{}, feedCat:null, feedBody:'', polOpen:{},
+};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sess=id=>SESS.find(s=>s.id===id);
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2400)}
+
+/* ── 리포트 작성 검증 (데스크톱과 동일) ── */
+const ABBR=[/\bSAT\s?RW\b/i,/\bAP\s?World\b(?!\s?History)/i,/\bMAP\s?G8\b/i,/\bVocab\b(?!ulary)/i,/\bELA\s?Int\b/i];
+const hasAbbr=t=>ABBR.some(r=>r.test(t||''));
+function contentChecks(t){t=t||'';
+  return {len:t.trim().length,
+    a:/(교재|Week|Unit|Set|Chapter|Quiz|지문|Drill|Workbook)/i.test(t),
+    b:/(정답률|집중|반응|맞|틀|이해|막히|잘 따라|헷갈)/.test(t),
+    c:/(다음|남았|복습|숙제|다시|이어서|계속)/.test(t)};
+}
+
+/* ══ ② 강의료 차감 — 가장 위, 가장 큰 글씨 ══ */
+function penBar(mini){
+  const amt=n=>n?'−'+n.toLocaleString('ko-KR'):'0원';
+  if(mini) return `<button class="pen mini" onclick="go('reports')" style="width:100%;text-align:left">
+    <div style="min-width:0"><div class="lead">리포트가 늦으면 강의료 차감</div>
+      <div class="sub">눌러서 안 쓴 리포트 보기 ›</div></div>
+    <div class="cs">
+      <div class="c"><i>1시간↑</i><b>${amt(5000)}</b></div>
+      <div class="c"><i>4시간↑</i><b>${amt(10000)}</b></div></div></button>`;
+  const cs=PENALTY_RULE.map(r=>`<div class="c ${r.amount?'':'ok'}">
+    <i>${r.when.replace('수업 종료 후 ','').replace('이 지나면','↑').replace(' 이내','↓')}</i><b>${amt(r.amount)}</b></div>`).join('');
+  return `<div class="pen">
+    <div class="lead">리포트를 늦게 쓰면 강의료가 깎입니다</div>
+    <div class="sub">수업이 끝난 시각부터 셉니다. 차감이 붙어도 <b>리포트는 결국 반드시 써야 합니다.</b>
+      연강은 마지막 수업이 끝난 시각 기준이며, 연강 수만큼 1시간씩 더 드립니다.</div>
+    <div class="cs">${cs}</div></div>`;
+}
+/* ══ ① 정책은 화면 맨 위 ══ */
+const POLICY={
+ home:{tag:'강사 권한',
+   short:'강사가 할 수 있는 일은 네 가지입니다.',
+   body:`<b>강사 화면에서 할 수 있는 일은 네 가지입니다.</b> ① 내 수업 보기 ② <span class="yes">수업 가능·불가 시간 표기</span>
+     ③ 지나간 수업 리포트 작성 ④ 건의 사항 전달.<br>수업 생성·시간 변경·학생 배정·정산 확정은 <span class="no">관리자만</span> 합니다.
+     관리자 페이지는 매니저 이상만 열립니다.`},
+ calendar:{tag:'캘린더 정책',
+   short:'보기 전용 — 표기만 할 수 있습니다.',
+   body:`<b>이 화면은 보기 전용입니다.</b> 스케줄 추가·시간 변경·삭제는 <span class="no">관리자만</span> 합니다.
+     강사가 할 수 있는 것은 <span class="yes">수업 가능한 시간(대면·비대면)과 불가능한 시간을 표기하는 것</span>뿐입니다.<br>
+     <span class="no">이미 확정된 수업 시간에는 불가 표시를 할 수 없습니다.</span> 옮겨야 하면 수업을 눌러 <b>스케줄 변경 요청</b>(수업 10일 전까지).`},
+ reports:{tag:'리포트 정책',
+   short:'60자 · 세 가지 · 교재는 정식 명칭.',
+   body:`<b>리포트는 수업이 끝나면 반드시 작성합니다.</b> 60자 이상 · 진행 내용/학생 반응/다음 계획 세 가지 ·
+     교재는 줄임말 없이 정식 명칭으로 씁니다.<br>작성한 리포트는 바로 학부모에게 가지 않고 <span class="yes">관리자 승인</span>을 거칩니다.`},
+ history:{tag:'조회 범위',
+   short:'직전 급여 1건까지만 열립니다.',
+   body:`<b>강사에게는 직전 급여 1건과, 그 급여에 포함된 수업만 보입니다.</b>
+     그 이전 기록은 <span class="yes">삭제되지 않고 보관</span>되지만 강사 화면에서는 열리지 않으며,
+     <span class="no">매니저 이상만</span> 전체 기간을 조회합니다.<br>시급은 관리자가 정한 값과 적용일만 보이고 강사는 고칠 수 없습니다.`},
+ guide:{tag:'수업 안내 정책',
+   short:'전부 관리자가 채운 읽기 전용입니다.',
+   body:`<b>이 화면의 값은 전부 관리자가 채웁니다.</b> 강사는 읽기 전용이고 담당이 아닌 학생은 조회되지 않습니다.
+     교재를 바꿔야 하면 <span class="yes">교재 변경 요청</span>으로 사유를 남기세요.`},
+ feedback:{tag:'건의 정책',
+   short:'한 달 3회까지 · 관리자만 봅니다.',
+   body:`<b>건의는 한 달에 3회까지 넣을 수 있습니다.</b> 수업·시급·스케줄·기타 네 분류로 관리자에게 바로 전달되며
+     다른 강사에게는 보이지 않습니다. 급한 일은 강사 단톡방으로 알려 주세요.`},
+};
+function polBar(page){
+  const p=POLICY[page]; if(!p) return '';
+  const open=!!UI.polOpen[page];
+  return `<button class="pol" style="width:100%;text-align:left;display:block" onclick="UI.polOpen['${page}']=${!open};render()">
+    <span class="tg">${p.tag}</span>
+    <div>${open?p.body:`<b>${p.short}</b>`}</div>
+    <span class="fold">${open?'접기 ▲':'정책 전문 보기 ▼'}</span></button>`;
+}
+
+/* ── 네비게이션 ── */
+const TABS=[['home','⌂','홈'],['calendar','▤','캘린더'],['reports','✎','리포트'],['more','⋯','더보기']];
+function go(tab,sub){UI.tab=tab;UI.sub=sub||null;closeSheet(true);window.scrollTo(0,0);render();
+  const sc=document.querySelector('.scroll'); if(sc) sc.scrollTop=0}
+function openSub(sub){UI.sub=sub;render();const sc=document.querySelector('.scroll');if(sc)sc.scrollTop=0}
+function backSub(){UI.sub=null;render()}
+
+const SUB_TITLE={guide:'수업 안내',history:'수업 히스토리 · 급여',feedback:'건의 사항',policy:'정책 모아보기',me:'내 정보'};
+function headHtml(){
+  const miss=missingReports().length;
+  if(UI.sub) return `<div class="head solid"><button class="bk" onclick="backSub()">‹</button>
+    <div class="ttl sm">${SUB_TITLE[UI.sub]||''}</div>
+    <button class="act" onclick="go('reports')">✎${miss?`<b>${miss}</b>`:''}</button></div>`;
+  const T={home:`${ME.name} 님`,calendar:'캘린더',reports:'리포트',more:'더보기'};
+  return `<div class="head"><div class="ttl">${T[UI.tab]}</div>
+    <button class="act" onclick="go('reports')">🔔${miss?`<b>${miss}</b>`:''}</button></div>`;
+}
+function render(){
+  const miss=missingReports().length;
+  $('app').innerHTML=`
+    ${headHtml()}
+    <div class="scroll">${
+      UI.sub==='guide'?viewGuide():UI.sub==='history'?viewHistory():UI.sub==='feedback'?viewFeedback():
+      UI.sub==='policy'?viewPolicy():UI.sub==='me'?viewMe():
+      UI.tab==='home'?viewHome():UI.tab==='calendar'?viewCal():UI.tab==='reports'?viewReports():viewMore()}</div>
+    <div class="tabs">${TABS.map(([k,ic,lb])=>`<button class="${UI.tab===k&&!UI.sub?'on':''}" onclick="go('${k}')">
+      <span class="ic">${ic}</span><span>${lb}</span>${k==='reports'&&miss?`<span class="dot">${miss}</span>`:''}</button>`).join('')}</div>`;
+}
+
+/* ══ 홈 ══ */
+function viewHome(){
+  const today=SESS.filter(s=>s.date===TODAY).sort((a,b)=>a.start.localeCompare(b.start));
+  const live=today.filter(s=>!isCanceled(s));
+  const nowS=today.find(isNow);
+  const miss=missingReports(), pend=pendingReports();
+  const next=live.find(s=>toMin(s.start)>NOW_MIN);
+  return `
+  ${penBar(true)}
+  ${polBar('home')}
+  <div class="hero">
+    <div class="r1"><div class="d">${+TODAY.slice(8,10)}</div>
+      <div class="dw">${+TODAY.slice(5,7)}월 · ${WD[wdOf(TODAY)]}요일</div>
+      <div class="clock"><b>${fromMin(NOW_MIN)}</b><span>KST</span></div></div>
+    <div class="meta">
+      <div class="mi"><i>오늘 수업</i><b>${live.length}건</b></div>
+      <div class="mi"><i>오늘 시수</i><b>${live.reduce((a,s)=>a+s.dur,0)/60}시간</b></div>
+      <div class="mi"><i>이번 달 시수</i><b>${settle(OPEN_PERIOD).doneH}시간</b></div>
+    </div>
+  </div>
+  ${miss.length?`<button class="ban" style="width:100%;text-align:left" onclick="openSheet(${miss[0].id})">
+    <div class="ic">!</div><div style="min-width:0"><b>안 쓴 리포트 ${miss.length}건</b>
+      <span>${mdw(miss[0].date)} ${esc(stu(miss[0].studentId).name)} · 지금 쓰면 ${won(penaltyNow(miss[0]).amount)} 차감</span></div>
+    <span class="go">›</span></button>`:''}
+  <div class="todos">
+    <button class="todo" onclick="go('reports')"><div class="n ${miss.length?'red':'zero'}">${miss.length}</div><span>리포트<br>미작성</span></button>
+    <button class="todo" onclick="go('reports')"><div class="n ${pend.length?'amb':'zero'}">${pend.length}</div><span>관리자<br>승인 대기</span></button>
+  </div>
+  ${nowS?`<div class="now"><div class="pulse"></div>
+    <div class="lb"><i></i>지금 진행 중</div>
+    <div style="font-size:16px;font-weight:800;letter-spacing:-.03em;margin:4px 0 2px">${esc(nowS.subject)}</div>
+    <div style="font-size:12px;color:var(--fgm)">${esc(stu(nowS.studentId).name)} 학생 · ${nowS.start}–${endTime(nowS)} · ${nowS.mode}</div>
+    <button class="btn dan full sm" style="margin-top:11px" onclick="openSheet(${nowS.id})">끝나면 바로 리포트 쓰기</button></div>`
+    :next?`<div class="card"><div style="font-size:11px;color:var(--fgs);font-weight:800">다음 수업</div>
+      <div style="font-size:15px;font-weight:800;letter-spacing:-.03em;margin:3px 0 2px">${next.start} ${esc(next.subject)}</div>
+      <div style="font-size:12px;color:var(--fgm)">${esc(stu(next.studentId).name)} 학생 · ${next.mode}</div></div>`:''}
+  <div class="sh"><h2>오늘 일정</h2><span class="more" onclick="go('calendar')">캘린더 ›</span></div>
+  <div class="card">${today.map(s=>rowHtml(s)).join('')||'<div class="empty"><div class="e">☕</div><b>오늘 수업이 없습니다</b><span>푹 쉬세요</span></div>'}</div>
+  <div class="sh"><h2>바로 가기</h2></div>
+  <div class="menu">
+    <button onclick="go('calendar','')"><span class="ic">▤</span><span class="tx"><b>가능·불가 시간 표기</b><span>2주 단위 · 최소 1주 전</span></span><span class="ar">›</span></button>
+    <button onclick="openSub('guide')"><span class="ic">▥</span><span class="tx"><b>수업 안내</b><span>담당 학생 교재 · 스타일 · 진단</span></span><span class="ar">›</span></button>
+    <button onclick="openSub('history')"><span class="ic">↺</span><span class="tx"><b>수업 히스토리 · 급여</b><span>직전 급여 1건까지</span></span><span class="ar">›</span></button>
+  </div>`;
+}
+function rowHtml(s){
+  const st=stu(s.studentId), b=blockState(s);
+  const rail={miss:'var(--red)',sched:'var(--blue)',done:'var(--grn)',pend:'var(--amb)',cancel:'#cbd5e1'}[b];
+  const chip={miss:'<span class="chip red">리포트 미작성</span>',sched:'<span class="chip blue">수업 예정</span>',
+    done:'<span class="chip grn">승인 완료</span>',pend:'<span class="chip amb">승인 대기</span>',
+    cancel:'<span class="chip gray">취소 · 시수 제외</span>'}[b];
+  return `<button class="row" style="width:100%;text-align:left" onclick="openSheet(${s.id})">
+    <span class="rail" style="background:${rail}"></span>
+    <span class="tm"><b>${s.start}</b><i>${endTime(s)}</i></span>
+    <span class="bd"><b style="${b==='cancel'?'text-decoration:line-through':''}">${esc(s.subject)}</b>
+      <span>${esc(st.name)} · ${s.mode}</span></span>
+    ${chip}</button>`;
+}
+</script>
+<script>
+/* ══ 캘린더 — 내 수업(아젠다) · 가능·불가 표기 ══
+   ① 대표 피드백: 강사는 표기만 한다. 확정된 수업 위에는 불가를 찍을 수 없다. */
+function viewCal(){
+  const seg=UI.calSeg;
+  return `
+  ${polBar('calendar')}
+  <div class="seg2">
+    <button class="${seg==='my'?'on':''}" onclick="UI.calSeg='my';render()">내 수업</button>
+    <button class="${seg==='mark'?'on':''}" onclick="UI.calSeg='mark';render()">가능·불가 표기</button>
+  </div>
+  ${seg==='my'?calAgenda():calMark()}`;
+}
+
+/* ── 내 수업: 주 스트립 + 하루 아젠다 (세로 스크롤만) ── */
+function calAgenda(){
+  const wk=Array.from({length:7},(_,i)=>addDays(UI.weekStart,i));
+  const day=UI.day, list=SESS.filter(s=>s.date===day).sort((a,b)=>a.start.localeCompare(b.start));
+  const wkSess=SESS.filter(s=>s.date>=wk[0]&&s.date<=wk[6]&&!isCanceled(s));
+  const miss=missingReports().filter(s=>s.date>=wk[0]&&s.date<=wk[6]);
+  const dotColor=d=>[...new Set(SESS.filter(s=>s.date===d).map(blockState))]
+    .map(b=>({miss:'var(--red)',sched:'var(--blue)',done:'var(--grn)',pend:'var(--amb)',cancel:'#cbd5e1'}[b]));
+  return `
+  <div class="sh" style="margin-top:2px"><h2>${+wk[0].slice(5,7)}월 ${+wk[0].slice(8,10)}일 – ${+wk[6].slice(5,7)}월 ${+wk[6].slice(8,10)}일</h2>
+    <span class="more">
+      <button style="padding:4px 8px" onclick="moveWeek(-1)">‹</button>
+      <button style="padding:4px 8px" onclick="UI.weekStart=monOf(TODAY);UI.day=TODAY;render()">이번 주</button>
+      <button style="padding:4px 8px" onclick="moveWeek(1)">›</button></span></div>
+  <div class="strip">${wk.map(d=>`<button class="${d===day?'on':''} ${wdOf(d)===0?'sun':''}" onclick="UI.day='${d}';render()">
+    <i>${WD[wdOf(d)]}</i><b>${+d.slice(8,10)}</b>
+    <span class="dots">${dotColor(d).slice(0,3).map(c=>`<i style="background:${c}"></i>`).join('')}</span></button>`).join('')}</div>
+  <div class="stat" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="s"><i>이번 주</i><b>${wkSess.length}건</b><span>${wkSess.reduce((a,s)=>a+s.dur,0)/60}시간</span></div>
+    <div class="s ${miss.length?'red':'grn'}"><i>미작성</i><b>${miss.length}건</b><span>${miss.length?'지금 쓰세요':'모두 완료'}</span></div>
+    <div class="s blue"><i>${mdw(day)}</i><b>${list.filter(s=>!isCanceled(s)).length}건</b><span>${list.filter(s=>!isCanceled(s)).reduce((a,s)=>a+s.dur,0)/60}시간</span></div>
+  </div>
+  ${list.map(agHtml).join('')||'<div class="empty"><div class="e">🗓</div><b>이 날은 수업이 없습니다</b><span>다른 날짜를 눌러 보세요</span></div>'}
+  <div class="card flat" style="padding:12px">
+    <div style="font-size:12px;font-weight:800;margin-bottom:8px">상자가 뜻하는 것</div>
+    ${[['miss','리포트 미작성','눌러서 지금 쓰세요'],['sched','수업 예정','아직 안 한 수업'],
+       ['done','리포트 완료','더 안 하셔도 됩니다'],['pend','승인 대기','관리자가 확인 중'],
+       ['cancel','취소된 수업','빗금 · 하지 않습니다']].map(([c,t,d])=>
+      `<div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+        <span class="ag" style="display:block;margin:0"><span class="bx ${c}" style="display:block;width:26px;height:16px;padding:0;box-shadow:none"></span></span>
+        <b style="font-size:11.5px">${t}</b><span style="font-size:11px;color:var(--fgs)">${d}</span></div>`).join('')}
+    <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:8px;font-size:11.5px;color:var(--fgm)">
+      테두리가 <b>실선이면 대면</b>, <b>점선이면 비대면</b>입니다.</div>
+  </div>`;
+}
+function moveWeek(n){UI.weekStart=addDays(UI.weekStart,7*n);UI.day=UI.weekStart;render()}
+function agHtml(s){
+  const st=stu(s.studentId), b=blockState(s);
+  const badge={miss:'리포트 미작성',sched:'수업 예정',done:'리포트 완료',pend:'승인 대기',cancel:'취소'}[b];
+  return `<div class="ag"><div class="tl"><b>${s.start}</b><i>${endTime(s)}</i></div>
+    <button class="bx ${b} ${s.mode==='비대면'?'online':''}" style="width:100%;text-align:left" onclick="openSheet(${s.id})">
+      <span class="badge">${badge}</span>
+      <div class="t">${esc(s.subject)}</div>
+      <div class="s">${esc(st.name)} 학생 · ${st.grade} · ${s.mode}</div>
+      <div class="foot">
+        <span class="chip" style="background:rgba(255,255,255,.2);border-color:transparent;color:inherit">${s.dur/60}시간</span>
+        ${b==='miss'?`<span class="chip solid-red">지금 쓰면 ${won(penaltyNow(s).amount)} 차감</span>`:''}
+        ${b==='cancel'&&s.canceled.makeup?`<span class="chip gray">보강 ${esc(s.canceled.makeup)}</span>`:''}
+      </div></button></div>`;
+}
+
+/* ── 가능·불가 표기 (2주 · 최소 1주 전) ── */
+function calMark(){
+  const days=Array.from({length:14},(_,i)=>addDays(UI.markStart,i));
+  const cycle=Math.floor(diffDays(HIRE,UI.markStart)/14)+1;
+  const inR=x=>x.date>=days[0]&&x.date<=days[13];
+  const nAv=AVAIL.filter(inR).length, nUn=UNAV.filter(inR).length;
+  return `
+  <div class="card" style="padding:13px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1"><b style="font-size:14px;letter-spacing:-.03em">${md(days[0])} – ${md(days[13])}</b>
+        <div style="font-size:11px;color:var(--fgs)">입사일 ${HIRE} 기준 ${cycle}번째 2주 회차</div></div>
+      <button class="btn sm ghost" onclick="UI.markStart=addDays(UI.markStart,-14);render()">‹</button>
+      <button class="btn sm ghost" onclick="UI.markStart=addDays(UI.markStart,14);render()">›</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      <span class="chip grn">가능 ${nAv}건</span><span class="chip gray">불가 ${nUn}건</span>
+      <span class="chip amb">${mdw(UNAV_OPEN)}부터 등록</span></div>
+  </div>
+  <div class="mk">${MARKS.map(m=>`<button class="${UI.markMode===m.key?'on':''}" onclick="UI.markMode='${m.key}';render()" aria-pressed="${UI.markMode===m.key}">
+    <span class="sw" style="border-color:${m.key==='불가'?'#0f172a':'#15803d'};border-style:${m.dash?'dashed':'solid'};
+      background:${m.key==='불가'?'#0f172a':'#f0fdf4'}"></span>${m.label}</button>`).join('')}</div>
+  <div class="warn"><b>1주 안에 생긴 사정은 여기서 등록할 수 없습니다</b>
+    오늘부터 ${md(addDays(UNAV_OPEN,-1))}까지는 이미 수업이 배정되어 있습니다.
+    갑작스러운 사정은 <b>TN Academy 강사 단톡방</b>에 올려 주세요.</div>
+  ${days.map(d=>{
+    const lock=d<UNAV_OPEN;
+    const fx=SESS.filter(s=>s.date===d&&!isCanceled(s)).sort((a,b)=>a.start.localeCompare(b.start));
+    const av=AVAIL.filter(a=>a.date===d), un=UNAV.filter(u=>u.date===d);
+    return `<div class="dayrow ${lock?'lock':''}">
+      <div class="dt ${wdOf(d)===0?'sun':''}"><b>${+d.slice(8,10)}</b><i>${WD[wdOf(d)]}</i>${lock?'<i style="color:var(--fgs)">마감</i>':''}</div>
+      <div class="bd"><div class="tagset">
+        ${fx.map(s=>`<span class="tag fx ${s.mode==='비대면'?'on':''}" onclick="toast('확정된 수업입니다 — 이 시간에는 불가 표시를 할 수 없습니다')">
+          ${s.start}–${endTime(s)} 수업 확정</span>`).join('')}
+        ${av.map(a=>`<span class="tag av ${a.mode==='비대면'?'on':''}" onclick="dropMark('av',${a.id})">가능·${a.mode} ${a.start}–${a.end} ✕</span>`).join('')}
+        ${un.map(u=>`<span class="tag un" onclick="dropMark('un',${u.id})">불가 ${u.start}–${u.end} ✕</span>`).join('')}
+        ${lock?'<span class="tag add" style="opacity:.55">등록 마감</span>'
+          :`<span class="tag add" onclick="openMarkSheet('${d}')">＋ ${UI.markMode} 표기</span>`}
+      </div></div></div>`}).join('')}
+  <div class="tip"><b>불가로 표기한 시간에는 관리자가 수업을 넣지 않습니다</b>
+    파란 칸은 이미 확정된 수업입니다. 확정 수업 위에는 불가 표시를 할 수 없으니, 먼저 스케줄 변경을 요청해 수업을 옮긴 뒤 표기하세요.
+    가능 시간(초록)은 관리자가 새 수업을 배치할 때 참고합니다.</div>`;
+}
+function dropMark(kind,id){
+  const arr=kind==='av'?AVAIL:UNAV;
+  const i=arr.findIndex(x=>x.id===id); if(i<0) return;
+  arr.splice(i,1); render(); toast(kind==='av'?'가능 시간 표기를 지웠습니다':'불가 시간 표기를 지웠습니다');
+}
+</script>
+<script>
+/* ══ 수업 시트 — 리포트 작성 · 수업 안내 · 스케줄 변경 ══ */
+const ddLabel=s=>{const d=dDay(s);return d>=0?`D-${d}`:`D+${-d} (지난 수업)`};
+function openSheet(id){
+  const s=sess(id); if(!s) return;
+  UI.sheet=id;
+  UI.stab=isCanceled(s)?'guide':'report';
+  UI.form={content:s.content,progress:s.progress,homework:s.homework,touched:false};
+  UI.chg={date:s.date,start:s.start,end:endTime(s),reason:''};
+  renderSheet();
+}
+function openMarkSheet(date){UI.sheet='mark';UI.mk={date,start:'13:00',end:'16:00',mode:UI.markMode,reason:''};renderSheet()}
+function openFeedSheet(){UI.sheet='feed';UI.feedCat=null;UI.feedBody='';renderSheet()}
+function closeSheet(silent){
+  UI.sheet=null;
+  const sh=$('sheet'), sc=$('scrim'); if(!sh) return;
+  sh.classList.remove('on'); sc.classList.remove('on');
+  if(!silent) setTimeout(()=>{if(!UI.sheet)sh.innerHTML=''},280);
+}
+function renderSheet(){
+  const sh=$('sheet'), sc=$('scrim');
+  if(UI.sheet==null){closeSheet();return}
+  sh.innerHTML = UI.sheet==='mark'?markSheet() : UI.sheet==='feed'?feedSheet() : sessionSheet(sess(UI.sheet));
+  sh.classList.add('on'); sc.classList.add('on');
+}
+const sheetWrap=(title,sub,body,foot,tabs)=>`
+  <div class="grab"></div>
+  <div class="sh-head"><div style="display:flex;align-items:flex-start;gap:10px">
+    <div style="flex:1;min-width:0"><div class="t">${title}</div><div class="s">${sub}</div></div>
+    <button class="bk" onclick="closeSheet()" style="width:32px;height:32px;border-radius:11px;background:var(--sub);display:grid;place-items:center;font-size:15px">✕</button>
+  </div></div>
+  ${tabs||''}
+  <div class="sh-body">${body}</div>
+  ${foot?`<div class="sh-foot">${foot}</div>`:''}`;
+
+/* ── 수업 시트 ── */
+function sessionSheet(s){
+  const st=stu(s.studentId), cancel=isCanceled(s);
+  const tabs=`<div class="sh-tabs">
+    <button class="${UI.stab==='report'?'on':''}" ${cancel?'disabled':''} onclick="UI.stab='report';renderSheet()">${cancel?'작성 불가':'리포트 작성'}</button>
+    <button class="${UI.stab==='guide'?'on':''}" onclick="UI.stab='guide';renderSheet()">수업 안내</button>
+    <button class="${UI.stab==='change'?'on':''}" ${cancel?'disabled':''} onclick="UI.stab='change';renderSheet()">스케줄 변경</button></div>`;
+  let body='', foot='';
+  if(cancel && UI.stab!=='guide'){ UI.stab='guide' }
+  if(UI.stab==='report'){ body=tabReport(s); foot=`
+    <button class="btn ghost" onclick="saveDraft(${s.id})">임시 저장</button>
+    <button class="btn go" style="flex:1" onclick="submitReport(${s.id})">작성 완료 · 승인 요청</button>`; }
+  else if(UI.stab==='change'){ body=tabChange(s); foot=`
+    <button class="btn ghost" onclick="closeSheet()">닫기</button>
+    <button class="btn pri" style="flex:1" ${canRequestChange(s)?'':'disabled'} onclick="submitChange(${s.id})">변경 요청 보내기</button>`; }
+  else { body=tabGuide(s); }
+  const cancelNote=cancel?`<div class="err" style="margin:0 18px 0"><b>관리자가 취소한 수업입니다</b>
+    ${esc(s.canceled.reason)}<br><span style="color:var(--fgs)">${esc(s.canceled.by)} · ${esc(s.canceled.at)}</span>
+    ${s.canceled.makeup?`<br><b style="display:inline">보강</b> ${esc(s.canceled.makeup)}`:''}</div>`:'';
+  return sheetWrap(`${esc(st.name)} · ${esc(s.subject)}`,
+    `${mdw(s.date)} ${s.start}–${endTime(s)} · ${s.mode} · ${st.grade}`,
+    cancelNote+body, foot, tabs);
+}
+
+/* ── 리포트 작성 ── */
+function tabReport(s){
+  const st=stu(s.studentId), f=UI.form, c=contentChecks(f.content);
+  const okLen=c.len>=60, all3=c.a&&c.b&&c.c;
+  const books=st.books.flatMap(b=>b.items.map(i=>i.n));
+  const pn=penaltyNow(s);
+  const abbrP=hasAbbr(f.progress), abbrH=hasAbbr(f.homework);
+  return `
+  <!-- ② 차감은 리포트 화면에서 가장 위, 가장 크게 -->
+  <div class="pen" style="margin-bottom:12px">
+    <div class="lead">${pn.head}</div>
+    <div class="sub">${pn.left!=null?`다음 차감까지 <b>${pn.left}분</b> 남았습니다. `:''}늦어도 리포트는 <b>반드시</b> 써야 합니다.</div>
+    <div class="cs">
+      <div class="c ${pn.amount?'':'ok'}"><i>지금 제출하면</i><b>${pn.amount?'−'+pn.amount.toLocaleString('ko-KR'):'0원'}</b></div>
+      ${pn.amount===0?'<div class="c"><i>1시간이 지나면</i><b>−5,000</b></div>'
+        :pn.amount===5000?'<div class="c"><i>4시간이 지나면</i><b>−10,000</b></div>'
+        :'<div class="c ok"><i>1시간 이내였다면</i><b>0원</b></div>'}
+    </div></div>
+  <div class="fld"><label><span class="n">1</span>학생 · 학년</label>
+    <input class="ro" value="${esc(st.name)} · ${st.grade}" readonly></div>
+  <div class="fld"><label><span class="n">2</span>날짜 · 시간 · 과목</label>
+    <input class="ro" value="${mdw(s.date)} ${s.start}–${endTime(s)} · ${esc(s.subject)}" readonly>
+    <button class="btn sm ghost full" style="margin-top:7px" onclick="UI.stab='change';renderSheet()">
+      스케줄 변경 요청 · ${ddLabel(s)} ${canRequestChange(s)?'':'(요청 불가)'}</button></div>
+  <div class="fld"><label><span class="n">3</span>수업 내용 <span class="chip red">필수</span></label>
+    <textarea id="cbox" class="${f.touched&&(!okLen||!all3)?'bad':''}"
+      oninput="UI.form.content=this.value;UI.form.touched=true;syncReport()"
+      placeholder="예) SAT Reading and Writing Week 6 지문 두 편을 풀었습니다. 근거 문장을 묻자 세 번 모두 찾아냈고, 후반 20분에 집중이 떨어졌습니다. 추론 문항 두 개는 다음 시간에 다시 봅니다.">${esc(f.content)}</textarea>
+    <div class="cnt" id="ccnt">${cntHtml(c)}</div></div>
+  <div class="rules">
+    <b>⚑ AI로 쓰셔도 됩니다. 다만 이 세 가지는 반드시</b>
+    <div class="r"><i>1</i><div>무엇을 했는지 — 교재 이름과 범위를 넣어서</div></div>
+    <div class="r"><i>2</i><div>학생이 어땠는지 — 눈으로 본 것 하나 이상</div></div>
+    <div class="r"><i>3</i><div>무엇이 남았는지 — 다음 시간에 다시 볼 것</div></div>
+    <div class="ex"><div class="no">✕ 오늘도 열심히 했습니다. 잘 따라왔습니다.</div>
+      <div class="ok">○ SAT Reading and Writing Week 6 지문 두 편 완료. 근거 문장 세 번 모두 찾아냄. 추론 문항 두 개는 다음 시간에 다시 봅니다.</div></div>
+  </div>
+  <div class="fld" style="margin-top:14px"><label><span class="n">4</span>진도 페이지</label>
+    <div class="bkchips">${books.map(b=>`<button class="bkchip" onclick="putBook('progress','${esc(b)}')">${esc(b)}</button>`).join('')}
+      <button class="bkchip add" onclick="toast('교재 추가는 수업 안내 탭에서 요청합니다')">＋ 다른 교재</button></div>
+    <input id="pbox" class="${abbrP?'bad':''}" value="${esc(UI.form.progress)}" oninput="UI.form.progress=this.value;syncReport()"
+      placeholder="예) SAT Reading and Writing Week 6 p.42-58">
+    ${abbrP?'<div class="cnt"><span class="v bad">교재는 줄임말 없이 정식 명칭으로 적어 주세요</span></div>':''}</div>
+  <div class="fld"><label><span class="n">5</span>숙제 페이지</label>
+    <div class="bkchips">${books.map(b=>`<button class="bkchip" onclick="putBook('homework','${esc(b)}')">${esc(b)}</button>`).join('')}</div>
+    <input id="hbox" class="${abbrH?'bad':''}" value="${esc(UI.form.homework)}" oninput="UI.form.homework=this.value;syncReport()"
+      placeholder="예) SAT Reading and Writing Vocabulary Quiz 11 전체">
+    ${abbrH?'<div class="cnt"><span class="v bad">교재는 줄임말 없이 정식 명칭으로 적어 주세요</span></div>':''}</div>
+  <div class="ai"><div class="h"><b>리포트 작성용 AI 프롬프트</b>
+      <button class="btn sm" onclick="copyPrompt(${s.id})">복사</button></div>
+    <pre id="aiBox">${esc(aiPrompt(s))}</pre></div>
+  <div class="tip" style="margin-top:12px"><b>작성한 리포트는 관리자 승인을 거칩니다</b>
+    승인 완료된 리포트만 학부모에게 나갑니다. 승인 후에도 고칠 수 있고, 고치면 다시 승인 대기로 내려갑니다.</div>`;
+}
+const cntHtml=c=>`<span class="v ${c.len>=60?'ok':'bad'}">${c.len} / 60자</span>
+  ${[['무엇을',c.a],['어땠는지',c.b],['남은 것',c.c]].map(([n,ok])=>`<span class="chip ${ok?'grn':'gray'}">${ok?'✓':'○'} ${n}</span>`).join('')}`;
+function syncReport(){
+  const c=contentChecks(UI.form.content);
+  const el=$('ccnt'); if(el) el.innerHTML=cntHtml(c);
+  const box=$('cbox'); if(box) box.classList.toggle('bad', UI.form.touched&&(c.len<60||!(c.a&&c.b&&c.c)));
+  const ai=$('aiBox'); if(ai&&typeof UI.sheet==='number') ai.textContent=aiPrompt(sess(UI.sheet));
+  const p=$('pbox'), h=$('hbox');
+  if(p) p.classList.toggle('bad',hasAbbr(UI.form.progress));
+  if(h) h.classList.toggle('bad',hasAbbr(UI.form.homework));
+}
+function putBook(key,name){
+  const cur=UI.form[key]||'';
+  UI.form[key]=(cur?cur.replace(/\s*$/,'')+' / ':'')+name+' ';
+  const el=$(key==='progress'?'pbox':'hbox'); if(el) el.value=UI.form[key];
+  syncReport(); toast('교재 정식 명칭을 넣었습니다 — 뒤에 범위를 적어 주세요');
+}
+function aiPrompt(s){
+  const st=stu(s.studentId), f=UI.form;
+  return `당신은 국제학교 준비 학원의 담당 강사입니다. 아래 수업 기록을 바탕으로 학부모에게 보낼 수업 리포트를 작성해 주세요.
+
+[수업 정보]
+학생: ${st.name} (${st.grade})
+날짜: 2026년 ${md(s.date)} (${WD[wdOf(s.date)]})
+시간: ${s.start} - ${endTime(s)}
+과목: ${s.subject}
+
+[오늘 수업 내용]
+${f.content||'(입력해 주세요)'}
+
+[진도 페이지]
+${f.progress||'(입력해 주세요)'}
+
+[숙제 페이지]
+${f.homework||'(입력해 주세요)'}
+
+[작성 규칙]
+- 마크다운 기호(**, ##, - 등)를 절대 사용하지 마세요.
+- "부족합니다" 같은 직접적인 지적 대신 완곡하고 정중한 어조로 써 주세요.
+- 한영 병기를 하지 마세요. 수업(Water Pressure) ✕ → 수업 ○
+- 교재는 정식 명칭 전체로 적어 주세요.
+- 350~450자, 세 문단으로 작성해 주세요.`;
+}
+function copyPrompt(id){
+  const t=aiPrompt(sess(id));
+  if(navigator.clipboard) navigator.clipboard.writeText(t).catch(()=>{});
+  toast('프롬프트를 복사했습니다 — AI에 붙여 넣고 결과를 다듬어 주세요');
+}
+function saveDraft(id){
+  const s=sess(id); s.content=UI.form.content; s.progress=UI.form.progress; s.homework=UI.form.homework;
+  if(s.report==='none') s.report='draft';
+  render(); renderSheet(); toast('임시 저장했습니다 — 아직 승인 요청은 가지 않았습니다');
+}
+function submitReport(id){
+  const s=sess(id), c=contentChecks(UI.form.content);
+  UI.form.touched=true;
+  if(c.len<60){renderSheet();toast("'수업 내용'을 60자 이상 적어 주세요");return}
+  if(!(c.a&&c.b&&c.c)){renderSheet();toast('무엇을 · 어땠는지 · 남은 것 세 가지가 모두 들어가야 합니다');return}
+  if(hasAbbr(UI.form.progress)||hasAbbr(UI.form.homework)){renderSheet();toast('교재는 줄임말 없이 정식 명칭으로 적어 주세요');return}
+  s.content=UI.form.content; s.progress=UI.form.progress; s.homework=UI.form.homework;
+  s.report='submitted'; s.submittedAt=`${TODAY} ${fromMin(NOW_MIN)}`;
+  const p=latePenalty(s);
+  closeSheet(); render();
+  toast(p?`승인 요청을 보냈습니다 — 지각 제출로 ${won(p)}이 차감됩니다`:'승인 요청을 보냈습니다 — 정시 제출이라 차감이 없습니다');
+}
+
+/* ── 스케줄 변경 ── */
+function changeConflicts(s){
+  const c=UI.chg, out=[];
+  const ns=toMin(c.start), ne=toMin(c.end);
+  if(ne<=ns) out.push('끝나는 시간이 시작보다 빠릅니다.');
+  if(diffDays(TODAY,c.date)<10) out.push(`10일 이내로는 옮길 수 없습니다 — <b>${mdw(EARLIEST_CHANGE)} 이후</b>로 골라 주세요.`);
+  for(const o of SESS){
+    if(o.id===s.id||isCanceled(o)||o.date!==c.date) continue;
+    if(!(ne>toMin(o.start)&&endMin(o)>ns)) continue;
+    out.push(`내 다른 수업과 겹칩니다 — <b>${o.start}–${endTime(o)} ${esc(o.subject)} · ${esc(stu(o.studentId).name)} 학생</b>`);
+  }
+  if(s.studentId===1 && c.date==='2026-09-01' && ns<21*60 && ne>19*60)
+    out.push(`${esc(stu(s.studentId).name)} 학생이 다른 수업 중입니다 — <b>19:00–21:00 AP Calculus AB · 정하윤 강사</b>`);
+  for(const u of UNAV){ if(u.date!==c.date) continue;
+    if(ne>toMin(u.start)&&toMin(u.end)>ns) out.push(`내가 <b>불가</b>로 표기한 시간입니다 — ${u.start}–${u.end}`); }
+  return out;
+}
+function tabChange(s){
+  const c=UI.chg, cf=changeConflicts(s), changed=(c.date!==s.date||c.start!==s.start||c.end!==endTime(s));
+  const dd=ddLabel(s);
+  return `
+  ${canRequestChange(s)?`<div class="ok"><b>지금은 요청할 수 있습니다 · ${dd}</b>
+    수업 10일 전까지만 변경을 요청할 수 있습니다. 관리자가 확인 후 확정합니다.</div>`
+   :`<div class="err"><b>수업이 10일 안이거나 이미 지나 요청할 수 없습니다 · ${dd}</b>
+    갑작스러운 사정이라면 <b>TN Academy 강사 단톡방</b>에 바로 올려 주세요. 관리자가 직접 조정합니다.</div>`}
+  <div class="fld"><label>지금 잡힌 시간</label>
+    <input class="ro" value="${mdw(s.date)} ${s.start}–${endTime(s)}" readonly></div>
+  <div class="fld"><label>옮길 날짜</label>
+    <input type="date" value="${c.date}" min="${EARLIEST_CHANGE}" onchange="UI.chg.date=this.value;renderSheet()"></div>
+  <div style="display:flex;gap:9px">
+    <div class="fld" style="flex:1"><label>시작</label>
+      <input type="time" value="${c.start}" step="1800" onchange="UI.chg.start=this.value;renderSheet()"></div>
+    <div class="fld" style="flex:1"><label>종료</label>
+      <input type="time" value="${c.end}" step="1800" onchange="UI.chg.end=this.value;renderSheet()"></div>
+  </div>
+  ${cf.length?`<div class="err"><b>이 시간으로는 옮길 수 없습니다</b>
+    ${cf.map(x=>`<div style="margin-top:4px">· ${x}</div>`).join('')}</div>`
+   :changed?'<div class="ok"><b>옮길 수 있는 시간입니다</b>강사·학생 일정과 불가 표기 어디에도 겹치지 않습니다.</div>':''}
+  <div class="fld"><label>왜 옮겨야 하나요</label>
+    <textarea style="min-height:92px" oninput="UI.chg.reason=this.value"
+      placeholder="예) 9월 1일은 대학원 학회 발표가 있어 참석이 어렵습니다. 같은 주 목요일 같은 시간으로 옮겨 주실 수 있을까요?">${esc(c.reason)}</textarea></div>
+  <div class="tip"><b>변경을 막는 네 가지</b>
+    ① 수업 10일 이내 ② 내 다른 수업과 겹침 ③ 학생이 다른 수업 중 ④ 내가 불가로 표기한 시간</div>`;
+}
+function submitChange(s_id){
+  const s=sess(s_id);
+  if(!canRequestChange(s)){toast('수업 10일 전까지만 요청할 수 있습니다 — 단톡방으로 알려 주세요');return}
+  if(changeConflicts(s).length){toast('겹치는 일정이 있어 요청할 수 없습니다');return}
+  if(UI.chg.reason.trim().length<10){toast('변경 사유를 10자 이상 적어 주세요');return}
+  closeSheet(); render(); toast('변경 요청을 보냈습니다 — 관리자 확인 후 확정됩니다');
+}
+
+/* ── 수업 안내(시트 탭) ── */
+function tabGuide(s){
+  const st=stu(s.studentId);
+  return `
+  ${st.alert?`<div class="warn"><b>⚑ 이번 학생 특이사항</b>${esc(st.alert)}</div>`:''}
+  <div class="card flat"><div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px">
+    <span class="chip red">${esc(st.intensity)}</span><span class="chip blue">${esc(st.lang)}</span><span class="chip gray">${esc(st.freq)}</span></div>
+    <div style="font-size:12.5px;line-height:1.65;color:var(--fgm)">${esc(st.teaching)}</div></div>
+  <div class="sh"><h2>교재</h2></div>
+  ${st.books.map(g=>`<div style="font-size:11.5px;font-weight:800;color:var(--blue);margin:8px 2px 6px">${esc(g.sub)}</div>
+    ${g.items.map(i=>`<div class="card flat" style="display:flex;gap:10px;align-items:center;padding:11px">
+      <span style="background:#dc2626;color:#fff;border-radius:6px;padding:3px 6px;font-size:9px;font-weight:800">PDF</span>
+      <span style="flex:1;min-width:0"><b style="font-size:12.5px;display:block">${esc(i.n)}</b>
+        <span style="font-size:11px;color:var(--fgs)">${i.sz} · ${i.from}부터</span></span>
+      ${i.isNew?'<span class="chip grn">새 교재</span>':''}
+      <button class="btn sm ghost" onclick="toast('내려받기 시작')">받기</button></div>`).join('')}`).join('')}
+  <div class="sh"><h2>진단고사</h2></div>
+  <div style="display:flex;gap:8px">${Object.entries(st.diag).map(([k,v])=>`
+    <div class="pctc" style="flex:1"><i>${k}</i><b style="color:${v>=80?'var(--grn)':v>=60?'var(--blue)':'#ea580c'}">${v}<span style="font-size:12px">%</span></b>
+      <div class="pctbar"><em style="width:${v}%;background:${v>=80?'var(--grn)':v>=60?'var(--blue)':'#ea580c'}"></em></div>
+      <i style="color:${v>=80?'var(--grn)':v>=60?'var(--blue)':'#ea580c'}">${v>=80?'강점':v>=60?'보통':'보완 필요'}</i></div>`).join('')}</div>
+  <div class="tip" style="margin-top:12px"><b>이 화면의 값은 전부 관리자가 채웁니다</b>강사는 읽기 전용입니다.</div>`;
+}
+
+/* ── 가능·불가 표기 시트 ── */
+function markSheet(){
+  const m=UI.mk;
+  const isUn=m.mode==='불가';
+  const clash=fixedIn(m.date,toMin(m.start),toMin(m.end));
+  const n=m.reason.trim().length, okReason=!isUn||n>=15;
+  const blocked=isUn&&clash.length>0;
+  return sheetWrap(`${mdw(m.date)} 표기`,
+    isUn?'이 시간에는 관리자가 수업을 넣지 않습니다':'관리자가 새 수업을 배치할 때 참고합니다',`
+    <div class="mk">${MARKS.map(x=>`<button class="${m.mode===x.key?'on':''}" onclick="UI.mk.mode='${x.key}';renderSheet()">
+      <span class="sw" style="border-color:${x.key==='불가'?'#0f172a':'#15803d'};border-style:${x.dash?'dashed':'solid'};
+        background:${x.key==='불가'?'#0f172a':'#f0fdf4'}"></span>${x.label}</button>`).join('')}</div>
+    <div style="display:flex;gap:9px">
+      <div class="fld" style="flex:1"><label>시작</label><input type="time" step="1800" value="${m.start}" onchange="UI.mk.start=this.value;renderSheet()"></div>
+      <div class="fld" style="flex:1"><label>종료</label><input type="time" step="1800" value="${m.end}" onchange="UI.mk.end=this.value;renderSheet()"></div>
+    </div>
+    ${blocked?`<div class="err"><b>확정된 수업이 있어 불가 표시를 할 수 없습니다</b>
+      ${clash.map(s=>`<div style="margin-top:3px">· ${s.start}–${endTime(s)} ${esc(s.subject)} · ${esc(stu(s.studentId).name)} 학생</div>`).join('')}
+      <div style="margin-top:5px;color:var(--fgm)">먼저 스케줄 변경을 요청해 수업을 옮긴 뒤 표기하세요.</div></div>`:''}
+    ${isUn?`<div class="fld"><label>왜 이 시간에는 안 되나요 <span class="chip ${n>=15?'grn':'red'}">최소 15자</span></label>
+      <textarea style="min-height:104px" class="${n>0&&n<15?'bad':''}" oninput="UI.mk.reason=this.value;renderSheet()"
+        placeholder="예) 매주 화요일 저녁은 대학원 수업이 있습니다. 온라인 실시간 강의라 출석이 학점에 반영되어 조정이 어렵습니다.">${esc(m.reason)}</textarea>
+      <div class="cnt"><span class="v ${n>=15?'ok':'bad'}">${n} / 15자</span></div></div>
+      <div class="rules"><b>이렇게 써 주시면 관리자가 조정하기 쉽습니다</b>
+        <div class="r"><i>1</i><div>무엇 때문인지 — 학교, 병원, 가족, 다른 일정</div></div>
+        <div class="r"><i>2</i><div>매주 반복인지 이번만인지</div></div>
+        <div class="r"><i>3</i><div>조정이 가능한지 불가능한지</div></div>
+        <div class="r"><i>4</i><div>언제까지 이어지는 사정인지</div></div></div>`
+     :`<div class="ok"><b>가능 시간은 사유 없이 바로 표기됩니다</b>
+        대면은 학원에서, 비대면은 줌으로 할 수 있는 시간입니다. 표기해도 확정된 수업은 사라지지 않습니다.</div>`}`,
+    `<button class="btn ghost" onclick="closeSheet()">취소</button>
+     <button class="btn go" style="flex:1" ${blocked||!okReason?'disabled':''} onclick="saveMark()">표기하기</button>`);
+}
+function saveMark(){
+  const m=UI.mk;
+  if(m.date<UNAV_OPEN){toast('최소 1주 전까지만 표기할 수 있습니다');return}
+  if(toMin(m.end)<=toMin(m.start)){toast('끝나는 시간을 시작 이후로 골라 주세요');return}
+  if(m.mode==='불가'){
+    const clash=fixedIn(m.date,toMin(m.start),toMin(m.end));
+    if(clash.length){toast('확정된 수업이 있어 불가 표시를 할 수 없습니다');return}
+    if(m.reason.trim().length<15){toast('사유를 15자 이상 적어 주세요');return}
+    UNAV.push({id:UN_SEQ++,date:m.date,start:m.start,end:m.end,reason:m.reason.trim()});
+    closeSheet(); render(); toast('불가 시간을 표기했습니다 — 이 시간에는 수업이 배정되지 않습니다'); return;
+  }
+  AVAIL.push({id:AV_SEQ++,date:m.date,start:m.start,end:m.end,mode:m.mode});
+  closeSheet(); render(); toast(`가능 시간(${m.mode})을 표기했습니다 — 관리자가 배치할 때 참고합니다`);
+}
+</script>
+<script>
+/* ══ 리포트 목록 ══ */
+function viewReports(){
+  const miss=missingReports().sort((a,b)=>b.date.localeCompare(a.date));
+  // ③ 조회 범위: 직전 급여 기간과 진행 중인 이번 달까지만
+  const written=SESS.filter(s=>!isCanceled(s)&&canSeePeriod(s.date.slice(0,7))&&(s.report==='submitted'||s.report==='approved'))
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const pend=written.filter(s=>s.report==='submitted');
+  const grp=list=>{const g={};list.forEach(s=>{(g[s.date]=g[s.date]||[]).push(s)});return g};
+  const sec=(title,tone,list)=>`
+    <div class="sh"><h2>${title}</h2><span class="more">${list.length}건</span></div>
+    ${list.length?Object.entries(grp(list)).map(([d,ss])=>`
+      <div style="font-size:11px;font-weight:800;color:var(--fgs);margin:10px 2px 6px">${mdw(d)}</div>
+      <div class="card" style="padding:4px 14px">${ss.map(s=>rowHtml(s)).join('')}</div>`).join('')
+      :`<div class="empty" style="padding:26px"><div class="e">${tone==='red'?'🎉':'📄'}</div>
+        <b>${tone==='red'?'안 쓴 리포트가 없습니다':'아직 없습니다'}</b><span>${tone==='red'?'차감 없이 잘 하고 계십니다':''}</span></div>`}`;
+  return `
+  ${penBar()}
+  ${polBar('reports')}
+  <div class="stat" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="s ${miss.length?'red':'grn'}"><i>미작성</i><b>${miss.length}건</b><span>${miss.length?'차감 진행 중':'차감 없음'}</span></div>
+    <div class="s"><i>승인 대기</i><b>${pend.length}건</b><span>관리자 확인 중</span></div>
+    <div class="s blue"><i>이번 달 차감</i><b>${won(settle(OPEN_PERIOD).pen)}</b><span>${settle(OPEN_PERIOD).penCnt}건 지각</span></div>
+  </div>
+  ${sec('아직 안 쓴 리포트','red',miss)}
+  ${sec('작성한 리포트','gray',written)}
+  <div class="lockcard"><div class="ic">🔒</div>
+    <div><b>${LOCKED_PAYOUTS[0].label} 이전 리포트</b>
+      <span>보관되어 있지만 강사 화면에서는 열리지 않습니다 · 매니저 이상만 조회</span></div></div>`;
+}
+
+/* ══ 더보기 ══ */
+function viewMore(){
+  const r=settle(OPEN_PERIOD);
+  return `
+  <div class="card" style="display:flex;align-items:center;gap:12px">
+    <div style="width:46px;height:46px;border-radius:15px;background:var(--blue-s);color:var(--blue);
+      display:grid;place-items:center;font-size:15px;font-weight:800">범준</div>
+    <div style="flex:1;min-width:0"><b style="font-size:15px;letter-spacing:-.03em">${ME.name}</b>
+      <div style="font-size:11.5px;color:var(--fgs)">${ME.role} · 시급 ${won(ME.rate)} (${ME.rateFrom} 적용)</div></div>
+    <button class="btn sm ghost" onclick="openSub('me')">내 정보</button>
+  </div>
+  <div class="menu">
+    <button onclick="openSub('guide')"><span class="ic">▥</span><span class="tx"><b>수업 안내</b><span>담당 학생 교재 · 스타일 · 진단 점수</span></span><span class="ar">›</span></button>
+    <button onclick="openSub('history')"><span class="ic">↺</span><span class="tx"><b>수업 히스토리 · 급여</b><span>직전 급여 1건 · 이번 달 정산 예정 ${won(r.net)}</span></span><span class="ar">›</span></button>
+    <button onclick="openSub('feedback')"><span class="ic">✉</span><span class="tx"><b>건의 사항</b><span>이번 달 ${FEEDBACK.length}/3회 사용</span></span><span class="ar">›</span></button>
+    <button onclick="openSub('policy')"><span class="ic">§</span><span class="tx"><b>정책 모아보기</b><span>차감 · 표기 · 변경 · 조회 범위</span></span><span class="ar">›</span></button>
+  </div>
+  ${penBar(true)}
+  <div class="menu">
+    <button onclick="toast('강사 단톡방으로 이동합니다')"><span class="ic">💬</span><span class="tx"><b>TN Academy 강사 단톡방</b><span>1주 안에 생긴 급한 사정은 여기로</span></span><span class="ar">›</span></button>
+    <button onclick="toast('로그아웃')"><span class="ic">⏻</span><span class="tx"><b>로그아웃</b><span>${ME.name} · ${ME.role}</span></span><span class="ar">›</span></button>
+  </div>
+  <div class="tip">관리자 페이지는 <b>매니저 이상만</b> 열 수 있습니다. 강사 계정에는 그 화면으로 가는 버튼도 링크도 없습니다.</div>`;
+}
+
+/* ══ 수업 히스토리 · 급여 (③ 직전 급여 1건까지) ══ */
+function viewHistory(){
+  const tab=UI.histTab, period=tab==='last'?LAST_PAYOUT.period:OPEN_PERIOD;
+  const r=settle(period), M=+period.slice(5,7);
+  const g={}; r.list.forEach(s=>{(g[s.date]=g[s.date]||[]).push(s)});
+  return `
+  ${penBar(true)}
+  ${polBar('history')}
+  <div class="seg2">
+    <button class="${tab==='last'?'on':''}" onclick="UI.histTab='last';render()">직전 급여 · ${+LAST_PAYOUT.period.slice(5,7)}월분</button>
+    <button class="${tab==='open'?'on':''}" onclick="UI.histTab='open';render()">이번 달 · 정산 예정</button>
+  </div>
+  <div class="pay">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:11.5px;color:#93a4bd">2026년 ${M}월 ${tab==='last'?'급여':'정산 예정액'}</span>
+      <span class="chip" style="margin-left:auto;background:${tab==='last'?'#14532d':'#422006'};color:${tab==='last'?'#bbf7d0':'#fde68a'};border-color:transparent">
+        ${tab==='last'?LAST_PAYOUT.paidAt+' 지급 완료':'지급 전'}</span></div>
+    <div class="l"><span>리포트 완료 ${r.doneH}시간 × ${won(ME.rate)}</span><b>${won(r.gross)}</b></div>
+    <div class="l"><span>지각 제출 차감 ${r.penCnt}건</span><b style="color:#fca5a5">− ${won(r.pen)}</b></div>
+    <div class="l"><span>원천징수 3.3%</span><b style="color:#fca5a5">− ${won(r.tax)}</b></div>
+    <div class="tot"><span>${tab==='last'?'실지급액':'실지급 예정액'}</span><b>${won(r.net)}</b></div>
+    ${r.missH?`<div style="background:#3f1d1d;border-radius:11px;padding:10px 12px;margin-top:11px;font-size:11.5px;color:#fecaca">
+      ⚠ 리포트 미작성 ${r.missH}시간은 아직 빠져 있습니다 <b style="float:right">${won(r.missH*ME.rate)}</b></div>`:''}
+  </div>
+  <div class="stat">
+    <div class="s grn"><i>리포트 완료</i><b>${r.done.length}건</b><span>시수 ${r.doneH}시간 · 정산 확정</span></div>
+    <div class="s red"><i>리포트 미작성</i><b>${r.miss.length}건</b><span>시수 ${r.missH}시간 · 정산 보류</span></div>
+  </div>
+  <div class="card flat" style="background:var(--amb-s);border-color:var(--amb-l)">
+    <b style="font-size:12.5px">리포트 지각 차감 규칙</b>
+    ${PENALTY_RULE.map(x=>`<div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+      <span style="flex:1;font-size:12px">${x.when}</span>
+      <span class="chip ${x.tone==='ok'?'grn':x.tone==='warn'?'amb':'red'}">${x.say}</span></div>`).join('')}
+    <div style="font-size:11px;color:var(--amb);margin-top:9px;line-height:1.55">연강은 마지막 수업이 끝난 시각부터 셉니다.
+      연강 수업 수만큼 1시간씩 더 드립니다.</div>
+  </div>
+  <div class="sh"><h2>2026년 ${M}월 수업 기록</h2><span class="more">${r.list.length}건 · 조회 범위 1달</span></div>
+  ${Object.entries(g).map(([d,ss])=>`
+    <div style="font-size:11px;font-weight:800;color:var(--fgs);margin:10px 2px 6px">${mdw(d)} · ${ss.filter(s=>!isCanceled(s)).reduce((a,s)=>a+s.dur,0)/60}시간</div>
+    <div class="card" style="padding:4px 14px">${ss.map(s=>{const p=latePenalty(s);
+      return `<button class="row" style="width:100%;text-align:left" onclick="openSheet(${s.id})">
+        <span class="tm"><b>${s.start}</b><i>${s.dur/60}h</i></span>
+        <span class="bd"><b>${esc(stu(s.studentId).name)} · ${esc(s.subject)}</b>
+          <span>${s.mode}${p?` · <b style="color:var(--red)">− ${won(p)} 지각</b>`:''}</span></span>
+        ${isCanceled(s)?'<span class="chip gray">정산 제외</span>':s.report==='approved'?'<span class="chip grn">승인</span>'
+          :s.report==='submitted'?'<span class="chip amb">대기</span>':isPast(s)?'<span class="chip red">미작성</span>':'<span class="chip blue">예정</span>'}
+      </button>`}).join('')}</div>`).join('')||'<div class="empty"><div class="e">📄</div><b>이 기간에 기록이 없습니다</b></div>'}
+  <div class="lockcard" style="margin-top:11px"><div class="ic">🔒</div>
+    <div><b>${LOCKED_PAYOUTS.map(p=>p.label).join(' · ')} 이전</b>
+      <span>기록은 삭제되지 않고 보관됩니다. 강사 화면에서는 직전 급여 1건까지만 열리며,
+      전체 기간은 매니저 이상만 조회합니다. 필요하시면 건의 사항 · 시급 관련으로 요청해 주세요.</span></div></div>
+  <button class="btn full ghost" onclick="openSub('feedback')">이전 급여 내역 요청하기</button>`;
+}
+
+/* ══ 수업 안내 (전체) ══ */
+function viewGuide(){
+  const st=stu(UI.guideSel);
+  const wk=SESS.filter(s=>s.studentId===st.id&&s.date>=UI.weekStart&&s.date<=addDays(UI.weekStart,6));
+  const lvl=(cat,lv)=>({영어:['못함','중간','잘함'],수학:['못함','중간','잘함'],인터뷰:['적음','중간','좋음']})[cat][lv-1];
+  return `
+  ${polBar('guide')}
+  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px">
+    ${STU.map(s=>`<button class="chip ${UI.guideSel===s.id?'solid-red':'gray'}" style="padding:9px 13px;font-size:12px;flex:0 0 auto"
+      onclick="UI.guideSel=${s.id};render()">${esc(s.name)} · ${s.grade}</button>`).join('')}</div>
+  ${st.alert?`<div class="warn"><b>⚑ 특이사항</b>${esc(st.alert)}</div>`:''}
+  <div class="card"><div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px">
+    <span class="chip red">${esc(st.intensity)}</span><span class="chip blue">${esc(st.lang)}</span><span class="chip gray">${esc(st.freq)}</span></div>
+    <div style="font-size:12.5px;line-height:1.65;color:var(--fgm)">${esc(st.teaching)}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:10px">
+      ${wk.map(s=>`<span class="chip gray" style="${isCanceled(s)?'text-decoration:line-through':''}">${md(s.date)} ${s.start}</span>`).join('')||'<span style="font-size:11.5px;color:var(--fgs)">이번 주 배정 없음</span>'}</div>
+  </div>
+  <div class="sh"><h2>교재</h2></div>
+  ${st.books.map(g=>`<div style="font-size:11.5px;font-weight:800;color:var(--blue);margin:8px 2px 6px">${esc(g.sub)}</div>
+    ${g.items.map(i=>`<div class="card flat" style="display:flex;gap:10px;align-items:center;padding:11px">
+      <span style="background:#dc2626;color:#fff;border-radius:6px;padding:3px 6px;font-size:9px;font-weight:800">PDF</span>
+      <span style="flex:1;min-width:0"><b style="font-size:12.5px;display:block">${esc(i.n)}</b>
+        <span style="font-size:11px;color:var(--fgs)">${i.sz} · ${i.from}부터</span></span>
+      ${i.isNew?'<span class="chip grn">새 교재</span>':''}</div>`).join('')}`).join('')}
+  ${st.history.length?`<div class="sh"><h2>교재 변경 이력</h2><span class="more">${st.history.length}건</span></div>
+    ${st.history.map(h=>`<div class="card flat" style="display:flex;gap:10px;align-items:center;padding:11px;opacity:.8;
+      background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 6px,#eef1f4 6px,#eef1f4 12px)">
+      <span style="flex:1;min-width:0"><b style="font-size:12px;text-decoration:line-through;display:block">${esc(h.n)}</b>
+        <span style="font-size:11px;color:var(--fgs)">${h.span} · ${esc(h.by)}</span></span>
+      <span class="chip ${h.tone==='green'?'grn':h.tone==='amber'?'amb':'blue'}">${h.tag}</span></div>`).join('')}`:''}
+  <div class="sh"><h2>학생 스타일</h2></div>
+  ${Object.entries(st.style).map(([cat,rows])=>`<div class="card flat" style="padding:12px">
+    <b style="font-size:12.5px">${cat}</b>
+    ${rows.map(([n,lv])=>`<div style="display:flex;align-items:center;gap:9px;margin-top:8px">
+      <span style="width:58px;font-size:11.5px;color:var(--fgm)">${n}</span>
+      <span class="bars">${[0,1,2].map(i=>`<span class="bar ${i<lv?(lv===1?'low':lv===2?'mid':'high'):''}"></span>`).join('')}</span>
+      <span style="margin-left:auto" class="chip ${lv===1?'amb':lv===2?'blue':'grn'}">${lvl(cat,lv)}</span></div>`).join('')}
+  </div>`).join('')}
+  <div class="sh"><h2>진단고사 점수</h2></div>
+  <div style="display:flex;gap:8px">${Object.entries(st.diag).map(([k,v])=>`
+    <div class="pctc" style="flex:1"><i>${k}</i><b style="color:${v>=80?'var(--grn)':v>=60?'var(--blue)':'#ea580c'}">${v}<span style="font-size:12px">%</span></b>
+      <div class="pctbar"><em style="width:${v}%;background:${v>=80?'var(--grn)':v>=60?'var(--blue)':'#ea580c'}"></em></div>
+      <i style="color:${v>=80?'var(--grn)':v>=60?'var(--blue)':'#ea580c'}">${v>=80?'강점':v>=60?'보통':'보완 필요'}</i></div>`).join('')}</div>
+  <div class="tip" style="margin-top:12px"><b>담당이 아닌 학생은 조회되지 않습니다</b>이 화면의 값은 전부 관리자가 채웁니다.</div>`;
+}
+
+/* ══ 건의 사항 ══ */
+function viewFeedback(){
+  const left=3-FEEDBACK.length;
+  return `
+  ${polBar('feedback')}
+  <div class="card" style="display:flex;align-items:center;gap:11px">
+    <div style="flex:1"><b style="font-size:14px;letter-spacing:-.03em">이번 달 ${FEEDBACK.length} / 3회 사용</b>
+      <div style="font-size:11.5px;color:var(--fgs)">${left>0?`${left}회 남았습니다`:'이번 달 한도를 모두 썼습니다'}</div></div>
+    <button class="btn pri sm" ${left>0?'':'disabled'} onclick="openFeedSheet()">건의하기</button>
+  </div>
+  ${FEEDBACK.map(f=>`<div class="card">
+    <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">
+      <span class="chip ${f.cat==='수업 관련'?'blue':f.cat==='시급 관련'?'grn':f.cat==='스케줄 관련'?'amb':'gray'}">${f.cat}</span>
+      <span style="font-size:11px;color:var(--fgs)">${f.at}</span>
+      <span class="chip ${f.status==='답변 완료'?'grn':f.status==='확인 중'?'amb':'gray'}" style="margin-left:auto">${f.status}</span></div>
+    <div style="font-size:12.5px;line-height:1.6">${esc(f.body)}</div>
+    ${f.reply?`<div style="margin-top:10px;padding:11px;background:var(--blue-s);border-radius:13px">
+      <b style="font-size:11.5px;color:var(--blue)">${esc(f.reply.by)} · ${esc(f.reply.at)}</b>
+      <div style="font-size:12px;margin-top:4px;line-height:1.6">${esc(f.reply.body)}</div></div>`:''}
+  </div>`).join('')}
+  <div class="tip">시급 · 정산 관련 문의는 관리자만 확인하며 다른 강사에게 공개되지 않습니다.
+    1주 안에 생긴 급한 사정은 건의가 아니라 <b>강사 단톡방</b>으로 알려 주세요.</div>`;
+}
+function feedSheet(){
+  const n=UI.feedBody.trim().length, ok=UI.feedCat&&n>=15;
+  return sheetWrap('건의 사항 보내기',`이번 달 ${FEEDBACK.length}/3회 사용 · 관리자만 봅니다`,`
+    <div class="fld"><label>어떤 이야기인가요</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        ${CATS.map(([c,d,t])=>`<button class="card flat" style="padding:12px;text-align:left;${UI.feedCat===c?'border-color:var(--blue);background:var(--blue-s)':''}"
+          onclick="UI.feedCat='${c}';renderSheet()"><b style="font-size:12.5px;display:block">${c}</b>
+          <span style="font-size:11px;color:var(--fgs)">${d}</span></button>`).join('')}</div></div>
+    <div class="fld"><label>내용 <span class="chip ${n>=15?'grn':'red'}">최소 15자</span></label>
+      <textarea oninput="UI.feedBody=this.value;renderSheet()"
+        placeholder="예) 화요일 16시 수업과 목요일 19시 수업 사이 이동 시간이 빠듯합니다. 화요일 수업을 16시 30분으로 30분만 미룰 수 있을까요?">${esc(UI.feedBody)}</textarea>
+      <div class="cnt"><span class="v ${n>=15?'ok':'bad'}">${n} / 15자</span></div></div>
+    <div class="tip"><b>한 달에 3회까지</b>관리자에게 바로 전달되며 다른 강사에게는 보이지 않습니다.</div>`,
+    `<button class="btn ghost" onclick="closeSheet()">취소</button>
+     <button class="btn pri" style="flex:1" ${ok?'':'disabled'} onclick="sendFeed()">보내기</button>`);
+}
+function sendFeed(){
+  if(FEEDBACK.length>=3){toast('이번 달 건의 3회를 모두 사용했습니다');return}
+  FEEDBACK.unshift({id:FEED_SEQ++,cat:UI.feedCat,at:`${+TODAY.slice(5,7)}월 ${+TODAY.slice(8,10)}일 (${WD[wdOf(TODAY)]})`,
+    body:UI.feedBody.trim(),status:'접수됨',reply:null});
+  closeSheet(); render(); toast('건의를 보냈습니다 — 관리자가 확인 후 답변합니다');
+}
+const CATS=[['수업 관련','교재 · 진행 · 학생'],['시급 관련','정산 · 보강'],['스케줄 관련','시간 · 요일 · 이동'],['기타','그 밖의 이야기']];
+
+/* ══ 정책 모아보기 ══ */
+function viewPolicy(){
+  return `
+  ${penBar()}
+  ${Object.entries(POLICY).map(([k,p])=>`<div class="pol"><span class="tg">${p.tag}</span><div>${p.body}</div></div>`).join('')}
+  <div class="card flat"><b style="font-size:12.5px">숫자로 보는 규칙</b>
+    ${[['리포트 최소 길이','60자'],['리포트 필수 요소','3가지'],['지각 차감','−5,000 / −10,000원'],
+       ['스케줄 변경 요청','수업 10일 전까지'],['가능·불가 표기','2주 단위 · 1주 전'],['불가 사유','15자 이상'],
+       ['건의 사항','월 3회'],['히스토리 조회','직전 급여 1건'],['원천징수','3.3%']].map(([k,v])=>
+      `<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
+        <span style="flex:1;font-size:12px;color:var(--fgm)">${k}</span>
+        <b style="font-size:13px;font-variant-numeric:tabular-nums;letter-spacing:-.02em">${v}</b></div>`).join('')}
+  </div>`;
+}
+function viewMe(){
+  const r=settle(LAST_PAYOUT.period);
+  return `
+  <div class="card" style="display:flex;align-items:center;gap:12px">
+    <div style="width:52px;height:52px;border-radius:17px;background:var(--blue-s);color:var(--blue);
+      display:grid;place-items:center;font-size:16px;font-weight:800">범준</div>
+    <div><b style="font-size:17px;letter-spacing:-.03em">${ME.name}</b>
+      <div style="font-size:12px;color:var(--fgs)">${ME.role} · 입사 ${HIRE}</div></div>
+  </div>
+  <div class="card">
+    ${[['시급',won(ME.rate)+' (관리자 설정)'],['적용일',ME.rateFrom],['직전 급여',`${LAST_PAYOUT.label} · ${won(r.net)}`],
+       ['지급일',LAST_PAYOUT.paidAt],['담당 학생',STU.length+'명'],['조회 범위','직전 급여 1건']].map(([k,v])=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:11px 0;border-top:1px solid var(--line)">
+        <span style="flex:1;font-size:12.5px;color:var(--fgm)">${k}</span><b style="font-size:13px">${v}</b></div>`).join('')}
+  </div>
+  <div class="tip"><b>시급은 강사가 고칠 수 없습니다</b>관리자가 설정한 값과 적용일만 보입니다.
+    바뀌어야 한다면 건의 사항 · 시급 관련으로 요청해 주세요.</div>`;
+}
+</script>
+<script>render();</script>
+</body>
+</html>

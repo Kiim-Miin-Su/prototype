@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TACO MVP v3 — 캘린더 프로토타입</title>
+<style>
+:root{
+  --canvas:#f6f7f9; --subtle:#eef1f4; --raised:#ffffff; --inset:#eef1f4;
+  --fg:#101828; --fg-muted:#475467; --fg-subtle:#667085; --fg-on:#ffffff;
+  --border:#d1d8e0; --border-muted:#e4e8ee;
+  --accent:#2563eb; --accent-hover:#1d4ed8; --accent-subtle:#eff4ff;
+  --success:#16a34a; --success-subtle:#f0fdf4;
+  --warning:#b45309; --warning-subtle:#fffbeb;
+  --danger:#dc2626; --danger-subtle:#fef2f2;
+  --done:#9333ea; --done-subtle:#faf5ff;
+  --grid-header:#eef1f4; --grid-cell:#ffffff; --line-minor:#e4e8ee; --line-hour:#d1d8e0; --today:#fffbeb;
+  --r-sm:4px; --r-md:8px; --r-lg:12px;
+  --hour-h:44px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{font-family:'Pretendard','Noto Sans KR',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+  background:var(--canvas);color:var(--fg);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;}
+input,select,textarea{font:inherit;color:inherit;}
+.app{display:flex;height:100vh;overflow:hidden;}
+.rail{width:76px;flex:0 0 76px;background:var(--subtle);border-right:1px solid var(--border-muted);
+  display:flex;flex-direction:column;align-items:center;padding:14px 8px;gap:4px;}
+.rail .logo{font-weight:700;color:var(--accent);font-size:15px;margin-bottom:10px;}
+.rail button{width:100%;padding:9px 0;border-radius:var(--r-md);display:flex;flex-direction:column;align-items:center;gap:3px;
+  font-size:11px;color:var(--fg-muted);}
+.rail button .ic{font-size:16px;line-height:1;}
+.rail button.on{background:var(--accent-subtle);color:var(--accent);font-weight:600;}
+.rail button:hover:not(.on){background:#e4e8ee;}
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--raised);border-bottom:1px solid var(--border-muted);}
+.topbar h1{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em;}
+.spacer{flex:1;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;}
+.badge.accent{background:var(--accent-subtle);color:var(--accent);}
+.badge.success{background:var(--success-subtle);color:var(--success);}
+.badge.warning{background:var(--warning-subtle);color:var(--warning);}
+.badge.danger{background:var(--danger-subtle);color:var(--danger);}
+.badge.neutral{background:var(--subtle);color:var(--fg-muted);}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:var(--r-md);font-size:12px;font-weight:600;
+  background:var(--raised);border:1px solid var(--border);color:var(--fg);white-space:nowrap;}
+.btn:hover{background:var(--subtle);}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn.primary:hover{background:var(--accent-hover);}
+.btn.warn{background:var(--warning);color:#fff;border-color:var(--warning);}
+.btn.ok{background:var(--success);color:#fff;border-color:var(--success);}
+.btn.danger{color:var(--danger);border-color:var(--border);}
+.btn.sm{padding:5px 10px;font-size:11px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.banner{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:12px;}
+.banner.warn{background:var(--warning-subtle);color:var(--fg);border-bottom:1px solid #f5e3c0;}
+.banner.danger{background:var(--danger-subtle);border-bottom:1px solid #f7d7d7;}
+.banner b{font-weight:700;}
+.banner .muted{color:var(--fg-muted);}
+.bar{display:flex;align-items:center;gap:8px;padding:9px 16px;background:var(--raised);border-bottom:1px solid var(--border-muted);flex-wrap:wrap;}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:var(--r-md);border:1px solid var(--border);
+  background:var(--subtle);font-size:12px;}
+.chip.on{background:var(--accent-subtle);border-color:var(--accent);color:var(--accent);font-weight:600;}
+.seg{display:inline-flex;background:var(--subtle);border-radius:var(--r-md);padding:2px;}
+.seg button{padding:4px 12px;border-radius:6px;font-size:12px;color:var(--fg-muted);}
+.seg button.on{background:var(--raised);color:var(--fg);font-weight:600;box-shadow:0 1px 2px rgba(16,24,40,.08);}
+.content{flex:1;overflow:auto;padding:12px 16px 20px;}
+select.mini{padding:5px 8px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--raised);font-size:12px;}
+input.mini{padding:6px 9px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--raised);font-size:12px;}
+/* calendar */
+.grid{border:1px solid var(--line-hour);border-radius:var(--r-lg);overflow:hidden;background:var(--grid-cell);display:flex;min-width:900px;}
+.gutter{width:56px;flex:0 0 56px;background:var(--grid-header);position:relative;}
+.gutter .gh{height:44px;border-bottom:1px solid var(--line-hour);}
+.gutter .lbl{height:var(--hour-h);font-size:11px;color:var(--fg-subtle);padding-right:7px;text-align:right;
+  transform:translateY(-7px);font-variant-numeric:tabular-nums;}
+.cols{flex:1;display:flex;min-width:0;}
+.col{flex:1;min-width:0;border-left:1px solid var(--line-hour);position:relative;}
+.col.today{background:var(--today);}
+.col .ch{height:44px;background:var(--grid-header);border-bottom:1px solid var(--line-hour);
+  display:flex;align-items:center;justify-content:space-between;padding:0 9px;font-size:12px;font-weight:600;}
+.col .ch .dow{color:var(--fg-muted);font-weight:500;}
+.col.today .ch{color:var(--accent);}
+.body{position:relative;}
+.hline{position:absolute;left:0;right:0;height:1px;background:var(--line-minor);}
+.blk{position:absolute;left:4px;right:4px;border-radius:6px;padding:5px 7px;color:#fff;overflow:hidden;cursor:pointer;
+  box-shadow:0 1px 2px rgba(16,24,40,.14);transition:transform .08s;}
+.blk:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(16,24,40,.2);}
+.blk .t{font-size:11.5px;font-weight:700;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.blk .s{font-size:10.5px;opacity:.92;font-variant-numeric:tabular-nums;}
+.blk .tag{background:rgba(255,255,255,.25);border-radius:4px;padding:0 4px;font-size:10px;font-weight:700;}
+.blk.canceled{background:#e2e8f0 !important;color:var(--fg-muted);box-shadow:none;}
+.blk.canceled .t{text-decoration:line-through;}
+.blk.due{outline:2px solid var(--warning);outline-offset:-2px;}
+.blk .tag.warn{background:var(--warning);}
+.blk .tag.rep{background:var(--danger);}
+/* table */
+table{width:100%;border-collapse:collapse;background:var(--raised);border-radius:var(--r-lg);overflow:hidden;
+  border:1px solid var(--border);}
+th{background:var(--grid-header);font-size:11px;color:var(--fg-muted);font-weight:600;text-align:left;padding:9px 12px;white-space:nowrap;}
+td{padding:10px 12px;border-top:1px solid var(--border-muted);font-size:12.5px;vertical-align:middle;}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+tr.clickable:hover td{background:var(--accent-subtle);cursor:pointer;}
+tr.ledger td{background:var(--inset);font-size:12px;}
+.cards{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+.card{flex:1;min-width:180px;background:var(--subtle);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px 14px;}
+.card .k{font-size:11px;color:var(--fg-muted);}
+.card .v{font-size:19px;font-weight:700;margin-top:2px;}
+.card .s{font-size:11px;color:var(--fg-subtle);margin-top:2px;}
+.panelrow{display:flex;gap:12px;align-items:flex-start;}
+.panel{background:var(--raised);border:1px solid var(--border);border-radius:var(--r-lg);padding:12px;}
+.todo{border:1px solid var(--border-muted);background:var(--subtle);border-radius:var(--r-md);padding:10px 12px;margin-bottom:8px;cursor:pointer;}
+.todo.on{background:var(--accent-subtle);border-color:var(--accent);}
+.todo .r1{display:flex;align-items:center;gap:8px;font-size:12px;}
+.todo .r2{font-size:11px;color:var(--fg-muted);margin-top:4px;}
+textarea.write{width:100%;min-height:230px;border:1px solid var(--border);border-radius:var(--r-md);padding:12px;
+  background:var(--inset);resize:vertical;font-size:13px;line-height:1.7;}
+.note{font-size:11px;color:var(--fg-subtle);}
+.hint{font-size:11px;color:var(--fg-muted);background:var(--subtle);border-left:3px solid var(--accent);padding:8px 10px;border-radius:0 6px 6px 0;margin:10px 0;}
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(16,24,40,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;}
+.modal{background:var(--raised);border-radius:14px;box-shadow:0 16px 48px rgba(16,24,40,.28);width:100%;max-width:560px;
+  max-height:90vh;overflow:auto;}
+.modal .mh{padding:18px 20px 12px;}
+.modal .mh h3{margin:0;font-size:16px;font-weight:700;}
+.modal .mh p{margin:3px 0 0;font-size:11px;color:var(--fg-muted);}
+.modal .mb{padding:4px 20px 16px;display:flex;flex-direction:column;gap:11px;}
+.modal .mf{padding:12px 20px 16px;background:var(--subtle);display:flex;align-items:center;gap:8px;}
+.field label{display:block;font-size:11px;color:var(--fg-muted);margin-bottom:5px;}
+.field input,.field select{width:100%;padding:8px 10px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--raised);font-size:12.5px;}
+.row2{display:flex;gap:10px;}
+.row2>*{flex:1;min-width:0;}
+.alert{border-radius:var(--r-md);padding:10px 12px;font-size:12px;}
+.alert.danger{background:var(--danger-subtle);color:var(--fg);}
+.alert.warn{background:var(--warning-subtle);}
+.alert b{display:block;margin-bottom:3px;}
+.alert.danger b{color:var(--danger);}
+.stuchips{display:flex;flex-wrap:wrap;gap:6px;border:1px solid var(--border);border-radius:var(--r-md);padding:8px;}
+.stuchip{background:var(--accent-subtle);color:var(--accent);border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;}
+.stuchip button{color:var(--accent);opacity:.7;margin-left:3px;}
+.wk{display:flex;gap:5px;}
+.wk button{padding:5px 10px;border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--fg-muted);background:var(--raised);}
+.wk button.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;}
+.opt{border:1px solid var(--border);border-radius:var(--r-md);padding:11px 12px;cursor:pointer;}
+.opt.on{border-color:var(--success);background:var(--success-subtle);}
+.opt.on.cancel{border-color:var(--fg-subtle);background:var(--subtle);}
+.opt .ot{font-size:13px;font-weight:600;}
+.opt .od{font-size:11px;color:var(--fg-muted);margin-top:2px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#101828;color:#fff;padding:10px 16px;
+  border-radius:999px;font-size:12px;z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s;}
+.toast.on{opacity:1;}
+.roleswitch{display:flex;background:var(--subtle);border-radius:999px;padding:3px;}
+.roleswitch button{padding:4px 12px;border-radius:999px;font-size:11.5px;color:var(--fg-muted);font-weight:600;}
+.roleswitch button.on{background:var(--raised);color:var(--fg);box-shadow:0 1px 2px rgba(16,24,40,.1);}
+.deny{background:var(--danger-subtle);border:1px dashed var(--danger);color:var(--danger);font-size:11px;padding:8px 10px;border-radius:var(--r-md);}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+<script>
+// ─────────────────────────────────────────────────────────────
+// TACO MVP v3 프로토타입 — 규칙(NEW.md 2장)을 실제로 강제하는 상태 모델
+// ─────────────────────────────────────────────────────────────
+const KST_TODAY = '2026-08-19';           // 데모 기준 '오늘'
+const NOW_MIN   = 13 * 60 + 40;            // 데모 기준 '지금' 13:40
+
+const DB = {
+  users: [
+    {id:1, name:'김민수', role:'super_admin', hourlyRate:null},
+    {id:2, name:'이수진', role:'manager',     hourlyRate:null},
+    {id:3, name:'박지훈', role:'instructor',  hourlyRate:40000},
+    {id:4, name:'정하윤', role:'instructor',  hourlyRate:40000},
+    {id:5, name:'김서연', role:'instructor',  hourlyRate:null},   // 시급 미설정 케이스
+  ],
+  subjects: [
+    {id:1, name:'TOEFL',    color:'#2563eb'},
+    {id:2, name:'초등수학',  color:'#16a34a'},
+    {id:3, name:'영어회화',  color:'#9333ea'},
+  ],
+  students: [
+    {id:1, name:'김하늘', grade:8,  status:'active', guardians:[{name:'김미경', relation:'어머니', phone:'010-1234-5678', primary:true}]},
+    {id:2, name:'이준서', grade:10, status:'active', guardians:[{name:'이정호', relation:'아버지', phone:'010-2222-3333', primary:true}]},
+    {id:3, name:'박서윤', grade:5,  status:'active', guardians:[{name:'박은지', relation:'어머니', phone:'010-4444-5555', primary:true}]},
+    {id:4, name:'최민재', grade:3,  status:'paused', guardians:[{name:'최수영', relation:'어머니', phone:'010-6666-7777', primary:true}]},
+  ],
+  sessions: [],
+  reports: [],   // {id, sessionId, studentId, authorId, content, status, rejectReason}
+  seq: {session:1, report:1},
+};
+
+// ── 시간 유틸 (A1·A2: 한 곳에서만 정의) ──
+const toMin  = (hhmm) => { const [h,m] = hhmm.split(':').map(Number); return h*60+m; };
+const fromMin= (mm)   => `${String(Math.floor((mm%1440)/60)).padStart(2,'0')}:${String(mm%60).padStart(2,'0')}`;
+const endMin = (s)    => toMin(s.startTime) + s.durationMinutes;          // 1440 초과 가능(자정 크로스)
+const endTimeOf = (s) => fromMin(endMin(s));
+const crossesMidnight = (s) => endMin(s) > 1440;
+const addDays = (iso, n) => { const d = new Date(iso+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); };
+const weekdayOf = (iso) => new Date(iso+'T00:00:00Z').getUTCDay();
+const WD = ['일','월','화','수','목','금','토'];
+const mondayOf = (iso) => addDays(iso, weekdayOf(iso)===0 ? -6 : 1-weekdayOf(iso));
+const won = (n) => n==null ? '—' : n.toLocaleString('ko-KR')+'원';
+const hoursOf = (min) => (Math.round(min/60*10)/10).toFixed(1)+'h';
+
+// ── 파생 규칙 ──
+// A10: 종료가 지났는데 아직 scheduled = '출결 대기'. 자동 완료 금지.
+function attendanceDue(s){
+  if (s.status !== 'scheduled') return false;
+  if (s.sessionDate < KST_TODAY) return true;
+  if (s.sessionDate > KST_TODAY) return false;
+  return endMin(s) <= NOW_MIN;
+}
+// A11: 페이는 회차 단위 반올림. 완료만 인정.
+function payOf(s){
+  if (s.status !== 'completed') return 0;
+  if (s.payOverride != null) return s.payOverride;
+  return Math.round(s.durationMinutes/60 * (s.hourlyRateSnapshot||0));
+}
+const minutesOf = (s) => s.status === 'completed' ? s.durationMinutes : 0;
+// A18: 리포트 할 일은 저장하지 않고 파생
+function reportTodos(instructorId){
+  const out = [];
+  for (const s of DB.sessions){
+    if (s.deleted) continue;
+    if (s.status !== 'completed') continue;
+    if (instructorId && s.instructorId !== instructorId) continue;
+    const past = s.sessionDate < KST_TODAY || (s.sessionDate === KST_TODAY && endMin(s) <= NOW_MIN);
+    if (!past) continue;
+    for (const stuId of s.studentIds){
+      const r = DB.reports.find(r => r.sessionId===s.id && r.studentId===stuId);
+      const state = !r ? 'missing' : r.status==='draft' ? 'draft' : r.status==='rejected' ? 'rejected' : null;
+      if (!state) continue;
+      const days = Math.round((new Date(KST_TODAY) - new Date(s.sessionDate)) / 86400000);
+      out.push({session:s, studentId:stuId, state, daysOverdue:days, report:r||null});
+    }
+  }
+  return out.sort((a,b)=> b.daysOverdue-a.daysOverdue || a.session.sessionDate.localeCompare(b.session.sessionDate));
+}
+function reportProgress(s){
+  const total = s.studentIds.length;
+  let written=0, approved=0;
+  for (const stuId of s.studentIds){
+    const r = DB.reports.find(r=>r.sessionId===s.id && r.studentId===stuId);
+    if (r && r.status!=='rejected') written++;
+    if (r && r.status==='approved') approved++;
+  }
+  return {total, written, approved};
+}
+// A8: 충돌 — 같은 강사·같은 학생의 시간 겹침. 강행 옵션 없음.
+function findConflicts(draft, ignoreId){
+  const s1 = toMin(draft.startTime), e1 = s1 + draft.durationMinutes;
+  const out = [];
+  for (const s of DB.sessions){
+    if (s.deleted || s.id===ignoreId) continue;
+    if (s.sessionDate !== draft.sessionDate) continue;
+    if (s.status === 'canceled') continue;                  // 취소는 시간 점유 아님
+    const s2 = toMin(s.startTime), e2 = s2 + s.durationMinutes;
+    if (!(e1 > s2 && e2 > s1)) continue;
+    if (s.instructorId === draft.instructorId)
+      out.push({kind:'instructor', ownerName:nameOfUser(s.instructorId), s});
+    const shared = (draft.studentIds||[]).filter(id => s.studentIds.includes(id));
+    for (const id of shared) out.push({kind:'student', ownerName:nameOfStudent(id), s});
+  }
+  return out;
+}
+const nameOfUser    = (id) => (DB.users.find(u=>u.id===id)||{}).name || '—';
+const nameOfStudent = (id) => (DB.students.find(s=>s.id===id)||{}).name || '—';
+const subjectOf     = (id) => DB.subjects.find(s=>s.id===id) || {name:'—', color:'#64748b'};
+const gradeLabel    = (g) => g==null ? '—' : g===0?'미취학': g<=6?`초${g}` : g<=9?`중${g-6}` : g<=12?`고${g-9}` : 'N수';
+
+// ── 시드 데이터 ──
+function seed(){
+  const mon = mondayOf(KST_TODAY);                  // 2026-08-17 (월)
+  const S = (d, st, dur, subjectId, instructorId, studentIds, status, cancelReason) => {
+    const inst = DB.users.find(u=>u.id===instructorId);
+    DB.sessions.push({
+      id: DB.seq.session++, subjectId, instructorId,
+      sessionDate: addDays(mon, d), startTime: st, durationMinutes: dur,
+      status, cancelReason: cancelReason||null,
+      hourlyRateSnapshot: inst.hourlyRate || 0, payOverride:null,
+      studentIds, seriesId:null, memo:null,
+      statusChangedBy: status==='scheduled'?null:1,
+    });
+  };
+  // 지난 주(집계용)
+  for (let w=1; w<=3; w++){
+    const off = -7*w;
+    S(off+0, '10:00', 90, 1, 3, [1,2],  'completed');
+    S(off+2, '14:00', 90, 1, 3, [1,2],  'completed');
+    S(off+1, '16:00', 60, 2, 4, [3],    'completed');
+    S(off+3, '19:00', 90, 2, 4, [3,4],  'completed');
+    S(off+4, '10:00', 60, 3, 5, [2,3],  'completed');
+  }
+  // 이번 주
+  S(0, '10:00', 90, 1, 3, [1,2,3], 'completed');
+  S(0, '16:00', 60, 2, 4, [3,4],   'scheduled');
+  S(1, '14:00', 90, 1, 3, [1,2,3], 'scheduled');   // 어제 → 출결 대기
+  S(2, '11:00', 60, 3, 5, [2],     'completed');
+  S(2, '19:00', 90, 2, 4, [3,4],   'scheduled');
+  S(3, '16:00', 90, 1, 3, [1,2,3], 'canceled', 'instructor_absent');
+  S(4, '10:00', 60, 3, 5, [2,3],   'completed');
+  S(4, '17:00', 120,2, 4, [3],     'scheduled');
+  S(5, '09:00', 120,1, 3, [1,2],   'scheduled');
+  // 리포트: 과거분은 대부분 승인, 최근 몇 건은 미작성/임시/반려
+  for (const s of DB.sessions){
+    if (s.status !== 'completed') continue;
+    const isRecent = s.sessionDate >= addDays(KST_TODAY,-7);
+    for (const stuId of s.studentIds){
+      if (isRecent) continue;                       // 최근 건은 비워 둔다(할 일 데모)
+      DB.reports.push({id:DB.seq.report++, sessionId:s.id, studentId:stuId, authorId:s.instructorId,
+        content:'수업 내용 요약 및 다음 회차 계획.', status:'approved', rejectReason:null});
+    }
+  }
+  const recent = DB.sessions.filter(s=>s.status==='completed' && s.sessionDate>=addDays(KST_TODAY,-7));
+  if (recent[0]) DB.reports.push({id:DB.seq.report++, sessionId:recent[0].id, studentId:recent[0].studentIds[0],
+    authorId:recent[0].instructorId, content:'Reading 파트 2 지문 3개. 어휘 30개 중 24개 정답.', status:'submitted', rejectReason:null});
+  if (recent[1]) DB.reports.push({id:DB.seq.report++, sessionId:recent[1].id, studentId:recent[1].studentIds[0],
+    authorId:recent[1].instructorId, content:'쓰다 만 초안입니다.', status:'draft', rejectReason:null});
+  if (recent[1] && recent[1].studentIds[1]) DB.reports.push({id:DB.seq.report++, sessionId:recent[1].id, studentId:recent[1].studentIds[1],
+    authorId:recent[1].instructorId, content:'오늘도 열심히 했습니다.', status:'rejected', rejectReason:'다음 회차 계획을 한 줄 더 구체적으로 적어주세요'});
+}
+seed();
+
+// ── 앱 상태 ──
+const UI = {
+  role: 'manager',              // 'manager' | 'instructor'
+  me: 2,                        // 로그인 사용자 id (manager=이수진 / instructor=박지훈(3))
+  tab: 'calendar',              // calendar | instructors | students | my
+  weekStart: mondayOf(KST_TODAY),
+  filters: {instructorId:'', studentId:'', subjectId:''},
+  period: {from: KST_TODAY.slice(0,8)+'01', to: KST_TODAY.slice(0,8)+'31'},
+  expanded: null,               // 강사/학생 탭 펼친 행
+  selectedTodo: 0,
+  draft: '',
+  modal: null,
+};
+const isManager = () => UI.role === 'manager';
+const meId = () => isManager() ? 2 : 3;
+</script>
+<script>
+// ─────────────────────────────────────────────────────────────
+// 렌더
+// ─────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('on'),2200); }
+
+function visibleSessions(){
+  return DB.sessions.filter(s => {
+    if (s.deleted) return false;
+    if (!isManager() && s.instructorId !== meId()) return false;       // A15 강사 스코프 서버 강제
+    const f = UI.filters;
+    if (f.instructorId && s.instructorId !== +f.instructorId) return false;
+    if (f.subjectId && s.subjectId !== +f.subjectId) return false;
+    if (f.studentId && !s.studentIds.includes(+f.studentId)) return false;
+    return true;
+  });
+}
+
+function render(){
+  const nav = isManager()
+    ? [['📅','캘린더','calendar'],['👤','강사','instructors'],['🎓','학생','students']]
+    : [['📅','내 수업','my']];
+  if (!isManager() && UI.tab !== 'my') UI.tab = 'my';
+  if (isManager() && UI.tab === 'my') UI.tab = 'calendar';
+
+  $('app').innerHTML = `
+  <div class="app">
+    <div class="rail">
+      <div class="logo">TACO</div>
+      ${nav.map(([ic,lb,key])=>`<button class="${UI.tab===key?'on':''}" onclick="go('${key}')"><span class="ic">${ic}</span>${lb}</button>`).join('')}
+    </div>
+    <div class="main">
+      <div class="topbar">
+        <h1>${UI.tab==='calendar'?'스케줄 캘린더':UI.tab==='instructors'?'강사':UI.tab==='students'?'학생':'내 수업'}</h1>
+        ${!isManager() ? '<span class="badge neutral">읽기 전용 · 일정 변경은 매니저</span>' : ''}
+        <div class="spacer"></div>
+        <span class="note">역할 전환(데모)</span>
+        <div class="roleswitch">
+          <button class="${isManager()?'on':''}" onclick="setRole('manager')">매니저</button>
+          <button class="${!isManager()?'on':''}" onclick="setRole('instructor')">강사</button>
+        </div>
+        <span class="badge accent">${isManager()?'이수진 · 매니저':'박지훈 · 강사'}</span>
+      </div>
+      ${UI.tab==='calendar' ? viewCalendar() : UI.tab==='instructors' ? viewInstructors() : UI.tab==='students' ? viewStudents() : viewMy()}
+    </div>
+  </div>`;
+  renderModal();
+}
+function go(tab){ UI.tab=tab; UI.expanded=null; render(); }
+function setRole(r){ UI.role=r; UI.tab = r==='manager'?'calendar':'my'; UI.selectedTodo=0; UI.draft=''; render(); }
+
+// ── 캘린더 ──
+function viewCalendar(){
+  const H0=8, H1=22, HH=44;
+  const days = Array.from({length:7}, (_,i)=>addDays(UI.weekStart,i));
+  const sess = visibleSessions().filter(s => s.sessionDate>=days[0] && s.sessionDate<=days[6]);
+  const dueList = sess.filter(attendanceDue);
+  const banner = dueList.length ? `
+    <div class="banner warn">
+      <span>⏳</span><b>종료 시각이 지난 수업 ${dueList.length}건이 출결 대기입니다.</b>
+      <span class="muted">시간이 지났다고 자동 완료되지 않습니다 — 확인 후 확정하세요.</span>
+      <div class="spacer"></div>
+      <button class="btn warn sm" onclick="bulkComplete()">${dueList.length}건 모두 완료 처리</button>
+    </div>` : '';
+
+  const cols = days.map((d,i)=>{
+    const today = d===KST_TODAY;
+    const blocks = sess.filter(s=>s.sessionDate===d).map(s=>{
+      const top = (toMin(s.startTime)-H0*60)/60*HH;
+      const h = Math.max(20, s.durationMinutes/60*HH - 3);
+      const sub = subjectOf(s.subjectId);
+      const due = attendanceDue(s);
+      const rp = reportProgress(s);
+      const repMissing = s.status==='completed' && rp.written < rp.total;
+      const cls = ['blk', s.status==='canceled'?'canceled':'', due?'due':''].join(' ');
+      const bg = s.status==='canceled' ? '' : `background:${sub.color};${s.status==='scheduled'?'opacity:.92;':''}`;
+      return `<div class="${cls}" style="top:${top}px;height:${h}px;${bg}" onclick="openSession(${s.id})">
+        <div class="t">${s.status==='completed'?'✓ ':''}${esc(sub.name)}
+          ${due?'<span class="tag warn">출결?</span>':''}
+          ${repMissing?`<span class="tag rep">리포트 ${rp.total-rp.written}</span>`:''}
+        </div>
+        <div class="s">${s.startTime}–${endTimeOf(s)} ${esc(nameOfUser(s.instructorId))}</div>
+        ${s.durationMinutes>=90?`<div class="s">학생 ${s.studentIds.length}명</div>`:''}
+      </div>`;
+    }).join('');
+    return `<div class="col ${today?'today':''}">
+      <div class="ch"><span>${d.slice(5).replace('-','/')}</span><span class="dow">${WD[weekdayOf(d)]}</span></div>
+      <div class="body" style="height:${(H1-H0)*HH}px">
+        ${Array.from({length:H1-H0},(_,k)=>`<div class="hline" style="top:${(k+1)*HH}px"></div>`).join('')}
+        ${blocks}
+      </div></div>`;
+  }).join('');
+
+  return `${banner}
+  <div class="bar">
+    <select class="mini" onchange="setFilter('instructorId',this.value)">
+      <option value="">👤 강사 전체</option>
+      ${DB.users.filter(u=>u.role==='instructor').map(u=>`<option value="${u.id}" ${UI.filters.instructorId==u.id?'selected':''}>${u.name}</option>`).join('')}
+    </select>
+    <select class="mini" onchange="setFilter('studentId',this.value)">
+      <option value="">🎓 학생 전체</option>
+      ${DB.students.map(s=>`<option value="${s.id}" ${UI.filters.studentId==s.id?'selected':''}>${s.name}</option>`).join('')}
+    </select>
+    <select class="mini" onchange="setFilter('subjectId',this.value)">
+      <option value="">📚 과목 전체</option>
+      ${DB.subjects.map(s=>`<option value="${s.id}" ${UI.filters.subjectId==s.id?'selected':''}>${s.name}</option>`).join('')}
+    </select>
+    <button class="btn sm" onclick="moveWeek(-1)">◀</button>
+    <span style="font-weight:600">${UI.weekStart} ~ ${addDays(UI.weekStart,6).slice(5)}</span>
+    <button class="btn sm" onclick="moveWeek(1)">▶</button>
+    <button class="btn sm" onclick="UI.weekStart=mondayOf(KST_TODAY);render()">오늘</button>
+    <div class="spacer"></div>
+    <button class="btn primary" onclick="openCreate()">+ 일정 추가</button>
+  </div>
+  <div class="content">
+    <div class="grid">
+      <div class="gutter">
+        <div class="gh"></div>
+        ${Array.from({length:H1-H0+1},(_,i)=>`<div class="lbl">${String(H0+i).padStart(2,'0')}:00</div>`).join('')}
+      </div>
+      <div class="cols">${cols}</div>
+    </div>
+    <div class="hint">규칙 확인 — 블록을 클릭하면 <b>출결 확정</b>(매니저 전용)이 열립니다. 취소한 일정은 사라지지 않고 회색으로 남아 시수에서만 빠집니다. 「출결?」 배지는 종료가 지났는데 아직 확정되지 않은 회차입니다.</div>
+  </div>`;
+}
+function setFilter(k,v){ UI.filters[k]=v; render(); }
+function moveWeek(n){ UI.weekStart=addDays(UI.weekStart,7*n); render(); }
+
+// ── 강사 탭 ──
+function viewInstructors(){
+  const rows = DB.users.filter(u=>u.role==='instructor').map(u=>{
+    const ss = DB.sessions.filter(s=>!s.deleted && s.instructorId===u.id && s.sessionDate>=UI.period.from && s.sessionDate<=UI.period.to
+      && (!UI.filters.subjectId || s.subjectId===+UI.filters.subjectId));
+    const done = ss.filter(s=>s.status==='completed');
+    const minutes = done.reduce((a,s)=>a+minutesOf(s),0);
+    const pay = done.reduce((a,s)=>a+payOf(s),0);
+    const todos = reportTodos(u.id).length;
+    const pending = DB.reports.filter(r=>r.status==='submitted' && DB.sessions.find(s=>s.id===r.sessionId && s.instructorId===u.id)).length;
+    return {u, done, minutes, pay, todos, pending};
+  });
+  const T = rows.reduce((a,r)=>({c:a.c+r.done.length, m:a.m+r.minutes, p:a.p+r.pay, t:a.t+r.todos, pd:a.pd+r.pending}), {c:0,m:0,p:0,t:0,pd:0});
+  return `
+  <div class="bar">
+    <input class="mini" type="date" value="${UI.period.from}" onchange="setPeriod('from',this.value)">
+    <span class="note">~</span>
+    <input class="mini" type="date" value="${UI.period.to}" onchange="setPeriod('to',this.value)">
+    <select class="mini" onchange="setFilter('subjectId',this.value)">
+      <option value="">📚 과목 전체</option>
+      ${DB.subjects.map(s=>`<option value="${s.id}" ${UI.filters.subjectId==s.id?'selected':''}>${s.name}</option>`).join('')}
+    </select>
+    <div class="spacer"></div>
+    <button class="btn" onclick="exportCsv('instructor')">CSV 내보내기</button>
+  </div>
+  <div class="content">
+    <div class="cards">
+      <div class="card"><div class="k">완료 회차</div><div class="v">${T.c}</div><div class="s">${UI.period.from} ~ ${UI.period.to}</div></div>
+      <div class="card"><div class="k">총 시수</div><div class="v">${hoursOf(T.m)}</div><div class="s">완료 일정만 인정</div></div>
+      <div class="card"><div class="k">총 페이</div><div class="v">${won(T.p)}</div><div class="s">회차 단위 반올림 합계</div></div>
+      <div class="card"><div class="k">리포트</div><div class="v">${T.t}건</div><div class="s">미작성·임시·반려 / 승인 대기 ${T.pd}</div></div>
+    </div>
+    <table>
+      <thead><tr><th>강사</th><th class="num">완료 회차</th><th class="num">총 시수</th><th class="num">시급</th><th class="num">총 페이</th><th>리포트</th><th></th></tr></thead>
+      <tbody>
+      ${rows.map(r=>`
+        <tr class="clickable" onclick="toggleRow(${r.u.id})">
+          <td><b>${esc(r.u.name)}</b></td>
+          <td class="num">${r.done.length}</td>
+          <td class="num">${hoursOf(r.minutes)}</td>
+          <td class="num">${r.u.hourlyRate ? won(r.u.hourlyRate) : '<span style="color:var(--danger)">미설정</span>'}</td>
+          <td class="num"><b>${r.u.hourlyRate ? won(r.pay) : '—'}</b></td>
+          <td>${r.todos ? `<span class="badge warning">미완 ${r.todos}</span>` : '<span class="badge success">완료</span>'}
+              ${r.pending ? `<span class="badge accent" onclick="event.stopPropagation();openApprove(${r.u.id})">승인 대기 ${r.pending}</span>`:''}</td>
+          <td style="text-align:right;color:var(--accent);font-size:11px">${UI.expanded===r.u.id?'▲ 접기':'▼ 내역'}</td>
+        </tr>
+        ${UI.expanded===r.u.id ? ledgerRow(r) : ''}
+      `).join('')}
+      </tbody>
+    </table>
+    <div class="hint">페이 = 회차마다 <b>round(분/60 × 시급)</b> 계산 후 합산 — 합계를 먼저 내고 반올림하지 않습니다. 시급 미설정 강사는 금액이 산출되지 않고 경고로 표시됩니다.</div>
+  </div>`;
+}
+function ledgerRow(r){
+  const list = r.done.slice().sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate)).slice(-8);
+  return `<tr class="ledger"><td colspan="7">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <b>${esc(r.u.name)} · 회차 내역</b><span class="note">완료 ${r.done.length}건 중 최근 ${list.length}건</span>
+      <div class="spacer"></div><span class="note">엑셀과 같은 열 구성 · CSV 원본</span></div>
+    <table style="border:0">
+      <thead><tr><th>날짜</th><th>요일</th><th>시간</th><th>과목</th><th>학생</th><th class="num">시수</th><th class="num">페이</th><th>리포트</th></tr></thead>
+      <tbody>${list.map(s=>{
+        const rp=reportProgress(s);
+        const st = rp.approved===rp.total?'<span class="badge success">승인</span>' : rp.written>0?'<span class="badge warning">진행</span>' : '<span class="badge danger">미작성</span>';
+        return `<tr><td>${s.sessionDate}</td><td>${WD[weekdayOf(s.sessionDate)]}</td><td>${s.startTime}–${endTimeOf(s)}</td>
+        <td>${esc(subjectOf(s.subjectId).name)}</td><td>${s.studentIds.map(nameOfStudent).join(', ')}</td>
+        <td class="num">${hoursOf(s.durationMinutes)}</td><td class="num">${won(payOf(s))}</td><td>${st}</td></tr>`;
+      }).join('')}</tbody>
+    </table></td></tr>`;
+}
+function toggleRow(id){ UI.expanded = UI.expanded===id?null:id; render(); }
+function setPeriod(k,v){ UI.period[k]=v; render(); }
+
+// ── 학생 탭 ──
+function viewStudents(){
+  const rows = DB.students.map(st=>{
+    const ss = DB.sessions.filter(s=>!s.deleted && s.status==='completed' && s.studentIds.includes(st.id)
+      && s.sessionDate>=UI.period.from && s.sessionDate<=UI.period.to
+      && (!UI.filters.subjectId || s.subjectId===+UI.filters.subjectId));
+    const minutes = ss.reduce((a,s)=>a+s.durationMinutes,0);
+    const by = {};
+    ss.forEach(s=>{ const n=subjectOf(s.subjectId).name; by[n]=(by[n]||0)+s.durationMinutes; });
+    return {st, ss, minutes, by};
+  });
+  return `
+  <div class="bar">
+    <input class="mini" type="date" value="${UI.period.from}" onchange="setPeriod('from',this.value)">
+    <span class="note">~</span>
+    <input class="mini" type="date" value="${UI.period.to}" onchange="setPeriod('to',this.value)">
+    <select class="mini" onchange="setFilter('subjectId',this.value)">
+      <option value="">📚 과목 전체</option>
+      ${DB.subjects.map(s=>`<option value="${s.id}" ${UI.filters.subjectId==s.id?'selected':''}>${s.name}</option>`).join('')}
+    </select>
+    <div class="spacer"></div>
+    <button class="btn" onclick="exportCsv('student')">CSV 내보내기</button>
+  </div>
+  <div class="content">
+    <table>
+      <thead><tr><th>학생</th><th>학년</th><th>상태</th><th class="num">완료 회차</th><th class="num">총 수업 시간</th><th>과목별</th><th>주 보호자</th></tr></thead>
+      <tbody>${rows.map(r=>{
+        const g=r.st.guardians.find(g=>g.primary)||r.st.guardians[0]||{};
+        return `<tr><td><b>${esc(r.st.name)}</b></td><td>${gradeLabel(r.st.grade)}</td>
+        <td>${r.st.status==='active'?'<span class="badge success">재원</span>':r.st.status==='paused'?'<span class="badge warning">휴원</span>':'<span class="badge neutral">퇴원</span>'}</td>
+        <td class="num">${r.ss.length}</td><td class="num"><b>${hoursOf(r.minutes)}</b></td>
+        <td style="color:var(--fg-muted)">${Object.entries(r.by).map(([k,v])=>`${esc(k)} ${hoursOf(v)}`).join(' · ')||'—'}</td>
+        <td>${esc(g.name||'—')} ${g.relation?`<span class="note">(${esc(g.relation)})</span>`:''}<br><span class="note">${esc(g.phone||'')}</span></td></tr>`;
+      }).join('')}</tbody>
+    </table>
+    <div class="hint">학생 화면에는 <b>금액이 없습니다</b> — 시간과 회차만 집계합니다. 퇴원(left) 학생도 과거 집계에는 그대로 남습니다.</div>
+  </div>`;
+}
+</script>
+<script>
+// ── 강사: 내 수업 ──
+function viewMy(){
+  const todos = reportTodos(meId());
+  const sel = todos[UI.selectedTodo] || null;
+  const days = Array.from({length:7},(_,i)=>addDays(UI.weekStart,i));
+  const mine = visibleSessions().filter(s=>s.sessionDate>=days[0] && s.sessionDate<=days[6])
+    .sort((a,b)=> a.sessionDate.localeCompare(b.sessionDate) || a.startTime.localeCompare(b.startTime));
+
+  const banner = todos.length ? `
+    <div class="banner danger">
+      <span>✍️</span><b>리포트 미작성 ${todos.length}건</b>
+      <span class="muted">가장 오래 밀린 건 ${todos[0].daysOverdue}일 지났습니다.</span>
+      <div class="spacer"></div>
+      <button class="btn sm" style="background:var(--danger);color:#fff;border-color:var(--danger)" onclick="UI.selectedTodo=0;render()">바로 쓰기</button>
+    </div>` : `<div class="banner" style="background:var(--success-subtle)"><span>✅</span><b>밀린 리포트가 없습니다.</b><span class="muted">제출·승인된 건은 목록에서 사라집니다.</span></div>`;
+
+  const todoList = todos.map((t,i)=>{
+    const s=t.session, tone = t.state==='draft'?'warning':'danger';
+    const label = t.state==='missing'?'미작성':t.state==='draft'?'임시저장':'반려';
+    return `<div class="todo ${i===UI.selectedTodo?'on':''}" onclick="pickTodo(${i})">
+      <div class="r1"><b>${s.sessionDate.slice(5)} (${WD[weekdayOf(s.sessionDate)]}) ${s.startTime}</b>
+        <span class="badge accent">${esc(subjectOf(s.subjectId).name)}</span>
+        <span>${esc(nameOfStudent(t.studentId))}</span>
+        <div class="spacer"></div><span class="badge ${tone}">${label}</span></div>
+      <div class="r2">${t.daysOverdue}일 지남${t.report&&t.report.rejectReason?` · <span style="color:var(--danger)">반려 사유: ${esc(t.report.rejectReason)}</span>`:''}</div>
+    </div>`;
+  }).join('') || '<div class="note" style="padding:12px">할 일이 없습니다.</div>';
+
+  const writer = sel ? (()=> {
+    const s=sel.session;
+    const cur = sel.report ? sel.report.content : '';
+    return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <b>${s.sessionDate.slice(5)} (${WD[weekdayOf(s.sessionDate)]}) ${s.startTime} · ${esc(subjectOf(s.subjectId).name)} · ${esc(nameOfStudent(sel.studentId))}</b>
+      <span class="badge ${sel.state==='draft'?'warning':'danger'}">${sel.state==='missing'?'미작성':sel.state==='draft'?'임시저장':'반려'}</span>
+      <div class="spacer"></div><span class="note">박지훈 (나)</span>
+    </div>
+    ${sel.report&&sel.report.rejectReason?`<div class="alert danger" style="margin-bottom:10px"><b>반려됨</b>${esc(sel.report.rejectReason)}</div>`:''}
+    <textarea class="write" id="writebox" placeholder="오늘 수업 내용과 학생 상태를 적어주세요.&#10;&#10;예) Reading 파트 2 지문 3개를 풀었고, 추론 문항에서 근거 문장을 찾는 속도가 지난주보다 빨라졌습니다. 어휘 30개 중 24개 정답. 다음 시간까지 오답 어휘 6개 복습 예정입니다.">${esc(UI.draft || cur)}</textarea>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+      <span class="note">제출하면 매니저 승인 전까지 수정할 수 없습니다.</span>
+      <div class="spacer"></div>
+      <button class="btn" onclick="saveReport('draft')">임시저장</button>
+      <button class="btn primary" onclick="saveReport('submitted')">제출</button>
+    </div>`;
+  })() : '<div class="note">왼쪽에서 리포트를 고르세요.</div>';
+
+  // 강사 화면에는 필터바가 없다 — 볼 수 있는 범위가 '본인 수업' 하나로 고정이라 고를 것이 없다(A15).
+  return `${banner}
+  <div class="content">
+    <div class="panelrow">
+      <div class="panel" style="flex:0 0 480px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><b>리포트 할 일</b><span class="note">오래 밀린 순</span>
+          <div class="spacer"></div><span class="badge ${todos.length?'danger':'success'}">${todos.length}건</span></div>
+        ${todoList}
+        <div class="note" style="margin-top:8px">종료된 수업만 목록에 나옵니다. 제출·승인된 건은 자동으로 사라집니다.</div>
+      </div>
+      <div class="panel" style="flex:1">${writer}</div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b>내 일정</b>
+        <span class="note">${UI.weekStart} ~ ${addDays(UI.weekStart,6).slice(5)}</span>
+        <button class="btn sm" onclick="moveWeek(-1)">◀</button><button class="btn sm" onclick="moveWeek(1)">▶</button>
+        <div class="spacer"></div><span class="deny">본인이 담당한 수업만 · 읽기 전용 (필터 없음)</span></div>
+      <table><thead><tr><th>날짜</th><th>시간</th><th>과목</th><th>학생</th><th>상태</th><th class="num">시수</th><th>리포트</th></tr></thead>
+      <tbody>${mine.map(s=>{
+        const rp=reportProgress(s);
+        const stat = s.status==='completed'?'<span class="badge success">완료</span>'
+          : s.status==='canceled'?`<span class="badge neutral">취소</span>`
+          : attendanceDue(s)?'<span class="badge warning">출결 대기</span>':'<span class="badge accent">예정</span>';
+        return `<tr><td>${s.sessionDate.slice(5)} (${WD[weekdayOf(s.sessionDate)]})</td><td>${s.startTime}–${endTimeOf(s)}</td>
+        <td>${esc(subjectOf(s.subjectId).name)}</td><td>${s.studentIds.map(nameOfStudent).join(', ')}</td><td>${stat}</td>
+        <td class="num">${s.status==='completed'?hoursOf(s.durationMinutes):'—'}</td>
+        <td>${s.status==='completed'?`${rp.written}/${rp.total}`:'—'}</td></tr>`;
+      }).join('')}</tbody></table>
+      <div class="hint">강사 화면에는 <b>금액이 없습니다</b> — 응답에서 시급·페이 필드 자체가 빠집니다(화면에서 숨기는 것이 아닙니다).</div>
+    </div>
+  </div>`;
+}
+function pickTodo(i){ UI.selectedTodo=i; UI.draft=''; render(); }
+function saveReport(status){
+  const todos = reportTodos(meId());
+  const t = todos[UI.selectedTodo];
+  if(!t) return;
+  const box = $('writebox');
+  const content = (box ? box.value : '').trim();
+  if(!content){ toast('내용을 입력해 주세요'); return; }
+  const s = t.session;
+  const past = s.sessionDate < KST_TODAY || (s.sessionDate===KST_TODAY && endMin(s)<=NOW_MIN);
+  if(!(s.status==='completed' && past)){ toast('지나간 완료 수업만 작성할 수 있습니다 (A16)'); return; }
+  let r = DB.reports.find(r=>r.sessionId===s.id && r.studentId===t.studentId);
+  if(!r){ r={id:DB.seq.report++, sessionId:s.id, studentId:t.studentId, authorId:meId(), content, status, rejectReason:null}; DB.reports.push(r); }
+  else { r.content=content; r.status=status; r.rejectReason=null; }
+  UI.draft=''; UI.selectedTodo=0;
+  toast(status==='draft' ? '임시저장했습니다' : '제출했습니다 — 매니저 승인 전까지 수정할 수 없습니다');
+  render();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 모달
+// ─────────────────────────────────────────────────────────────
+function renderModal(){
+  const root=$('modal-root');
+  if(!UI.modal){ root.innerHTML=''; return; }
+  const m=UI.modal;
+  root.innerHTML = `<div class="scrim" onclick="if(event.target===this)closeModal()">${
+    m.type==='create' ? modalCreate(m) : m.type==='session' ? modalSession(m) : m.type==='approve' ? modalApprove(m) : ''
+  }</div>`;
+}
+function closeModal(){ UI.modal=null; renderModal(); }
+
+function openCreate(){
+  if(!isManager()){ toast('강사는 일정을 만들 수 없습니다 (403)'); return; }
+  UI.modal={type:'create', draft:{subjectId:1, instructorId:3, sessionDate:KST_TODAY, startTime:'14:00', durationMinutes:90,
+    studentIds:[1,2], repeat:false, weekdays:[weekdayOf(KST_TODAY)], toDate:addDays(KST_TODAY,60)}, conflicts:null};
+  renderModal();
+}
+function modalCreate(m){
+  const d=m.draft;
+  const inst=DB.users.find(u=>u.id===+d.instructorId);
+  const conf = m.conflicts;
+  return `<div class="modal" onclick="event.stopPropagation()">
+    <div class="mh"><h3>일정 추가</h3><p>과목 × 강사 × 학생을 한 시간대에 묶습니다</p></div>
+    <div class="mb">
+      <div class="row2">
+        <div class="field"><label>과목 *</label><select onchange="setDraft('subjectId',+this.value)">
+          ${DB.subjects.map(s=>`<option value="${s.id}" ${d.subjectId==s.id?'selected':''}>${s.name}</option>`).join('')}</select></div>
+        <div class="field"><label>담당 강사 *</label><select onchange="setDraft('instructorId',+this.value)">
+          ${DB.users.filter(u=>u.role==='instructor').map(u=>`<option value="${u.id}" ${d.instructorId==u.id?'selected':''}>${u.name}${u.hourlyRate?'':' (시급 미설정)'}</option>`).join('')}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>날짜 *</label><input type="date" value="${d.sessionDate}" onchange="setDraft('sessionDate',this.value)"></div>
+        <div class="field"><label>시작 *</label><input type="time" value="${d.startTime}" onchange="setDraft('startTime',this.value)"></div>
+        <div class="field"><label>소요(분) *</label><input type="number" min="10" max="480" step="5" value="${d.durationMinutes}" onchange="setDraft('durationMinutes',+this.value)"></div>
+      </div>
+      <div class="field"><label>학생 (${d.studentIds.length}명 선택)</label>
+        <div class="stuchips">
+          ${d.studentIds.map(id=>`<span class="stuchip">${esc(nameOfStudent(id))}<button onclick="toggleStudent(${id})">✕</button></span>`).join('')}
+          ${DB.students.filter(s=>!d.studentIds.includes(s.id)).map(s=>`<button class="btn sm" onclick="toggleStudent(${s.id})">+ ${esc(s.name)}</button>`).join('')}
+        </div></div>
+      <div style="background:var(--subtle);border-radius:var(--r-md);padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer">
+          <input type="checkbox" ${d.repeat?'checked':''} onchange="setDraft('repeat',this.checked)"> <b>매주 반복</b>
+          <span class="note">회차를 즉시 생성합니다 (규칙이 아니라 실제 일정 행)</span></label>
+        ${d.repeat?`<div style="margin-top:8px">
+          <div class="wk">${WD.map((w,i)=>`<button class="${d.weekdays.includes(i)?'on':''}" onclick="toggleWeekday(${i})">${w}</button>`).join('')}</div>
+          <div class="field" style="margin-top:8px"><label>종료일</label><input type="date" value="${d.toDate}" onchange="setDraft('toDate',this.value)"></div>
+        </div>`:''}
+      </div>
+      ${conf&&conf.length?`<div class="alert danger"><b>⚠ 충돌 ${conf.length}건 — 저장할 수 없습니다</b>
+        ${conf.map(c=>`<div>${c.kind==='instructor'?'강사':'학생'} <span style="font-weight:700">${esc(c.ownerName)}</span> · ${c.s.sessionDate} ${c.s.startTime}–${endTimeOf(c.s)} ${esc(subjectOf(c.s.subjectId).name)} 과 겹칩니다.</div>`).join('')}
+        <div class="note" style="margin-top:4px">강행 저장 옵션은 제공하지 않습니다 — 이중 예약은 곧 시수 이중 계상입니다.</div></div>`:''}
+    </div>
+    <div class="mf"><span class="note">시급 ${inst&&inst.hourlyRate?won(inst.hourlyRate):'미설정(0원)'}이 이 회차에 스냅샷으로 저장됩니다</span>
+      <div class="spacer"></div>
+      <button class="btn" onclick="closeModal()">취소</button>
+      <button class="btn primary" onclick="submitCreate()">일정 추가</button></div>
+  </div>`;
+}
+function setDraft(k,v){ UI.modal.draft[k]=v; UI.modal.conflicts=null; renderModal(); }
+function toggleStudent(id){ const d=UI.modal.draft; d.studentIds = d.studentIds.includes(id)?d.studentIds.filter(x=>x!==id):[...d.studentIds,id]; UI.modal.conflicts=null; renderModal(); }
+function toggleWeekday(i){ const d=UI.modal.draft; d.weekdays = d.weekdays.includes(i)?d.weekdays.filter(x=>x!==i):[...d.weekdays,i]; renderModal(); }
+function submitCreate(){
+  const d=UI.modal.draft;
+  const targets = [];
+  if(!d.repeat) targets.push(d.sessionDate);
+  else { let cur=d.sessionDate; let guard=0;
+    while(cur<=d.toDate && guard++<400){ if(d.weekdays.includes(weekdayOf(cur))) targets.push(cur); cur=addDays(cur,1); } }
+  const conflicts=[]; const ok=[];
+  for(const date of targets){
+    const c=findConflicts({...d, sessionDate:date});
+    if(c.length) conflicts.push(...c); else ok.push(date);
+  }
+  if(conflicts.length && !d.repeat){ UI.modal.conflicts=conflicts; renderModal(); return; }   // 단건은 전건 거절
+  const inst=DB.users.find(u=>u.id===+d.instructorId);
+  for(const date of ok){
+    DB.sessions.push({id:DB.seq.session++, subjectId:+d.subjectId, instructorId:+d.instructorId, sessionDate:date,
+      startTime:d.startTime, durationMinutes:+d.durationMinutes, status:'scheduled', cancelReason:null,
+      hourlyRateSnapshot: inst.hourlyRate||0, payOverride:null, studentIds:[...d.studentIds], seriesId:d.repeat?Date.now():null, memo:null, statusChangedBy:null});
+  }
+  closeModal();
+  UI.weekStart = mondayOf(d.sessionDate);
+  toast(d.repeat ? `${ok.length}건 생성 · 충돌 ${conflicts.length}건 건너뜀` : '일정을 추가했습니다');
+  render();
+}
+
+function openSession(id){
+  const s=DB.sessions.find(x=>x.id===id);
+  UI.modal={type:'session', id, cancelReason:s.cancelReason||'instructor_absent'};
+  renderModal();
+}
+function modalSession(m){
+  const s=DB.sessions.find(x=>x.id===m.id);
+  const rp=reportProgress(s);
+  const due=attendanceDue(s);
+  const pay=Math.round(s.durationMinutes/60*(s.hourlyRateSnapshot||0));
+  const REASONS={instructor_absent:'강사 결강',student_absent:'학생 결석',academy:'학원 사정',holiday:'공휴일',other:'기타'};
+  return `<div class="modal" style="max-width:480px" onclick="event.stopPropagation()">
+    <div class="mh"><h3>${esc(subjectOf(s.subjectId).name)}</h3>
+      <p>${s.sessionDate} (${WD[weekdayOf(s.sessionDate)]}) ${s.startTime}–${endTimeOf(s)} · ${esc(nameOfUser(s.instructorId))} · 학생 ${s.studentIds.map(nameOfStudent).join(', ')}</p></div>
+    <div class="mb">
+      ${due?`<div class="alert warn">종료 시각이 지났지만 아직 확정되지 않았습니다. <b>자동으로 완료되지 않습니다.</b></div>`:''}
+      ${!isManager()?`<div class="deny">출결 확정은 매니저 이상만 가능합니다 (403) — 강사 화면에는 이 버튼이 없습니다.</div>`:`
+      <div class="opt ${s.status==='completed'?'on':''}" onclick="setStatus(${s.id},'completed')">
+        <div class="ot">${s.status==='completed'?'◉':'○'} 완료</div>
+        <div class="od">시수·페이에 포함됩니다 (${s.durationMinutes}분 · ${won(pay)})</div></div>
+      <div class="opt cancel ${s.status==='canceled'?'on':''}" onclick="setStatus(${s.id},'canceled')">
+        <div class="ot">${s.status==='canceled'?'◉':'○'} 취소</div>
+        <div class="od">시수 0 · 페이 0. 사유를 남깁니다</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:7px">
+          ${Object.entries(REASONS).map(([k,v])=>`<button class="btn sm ${m.cancelReason===k?'primary':''}" onclick="event.stopPropagation();UI.modal.cancelReason='${k}';renderModal()">${v}</button>`).join('')}
+        </div></div>
+      <div class="opt ${s.status==='scheduled'?'on':''}" style="${s.status==='scheduled'?'border-color:var(--accent);background:var(--accent-subtle)':''}" onclick="setStatus(${s.id},'scheduled')">
+        <div class="ot">${s.status==='scheduled'?'◉':'○'} 예정으로 되돌리기</div>
+        <div class="od">집계에서 즉시 빠집니다</div></div>`}
+      <div class="note">리포트 ${rp.written}/${rp.total} 작성 · ${rp.approved} 승인 ${s.statusChangedBy?`· 확정자 ${esc(nameOfUser(s.statusChangedBy))}`:''}</div>
+    </div>
+    <div class="mf"><span class="note">${isManager()?'확정자·시각이 기록됩니다':'읽기 전용'}</span><div class="spacer"></div>
+      <button class="btn" onclick="closeModal()">닫기</button>
+      ${isManager()?`<button class="btn danger" onclick="deleteSession(${s.id})">삭제</button>`:''}</div>
+  </div>`;
+}
+function setStatus(id,status){
+  if(!isManager()){ toast('출결 확정은 매니저 이상만 가능합니다 (403)'); return; }
+  const s=DB.sessions.find(x=>x.id===id);
+  s.status=status;
+  s.cancelReason = status==='canceled' ? (UI.modal.cancelReason||'other') : null;
+  s.statusChangedBy = status==='scheduled'?null:meId();
+  toast(status==='completed'?'완료로 확정했습니다 — 시수·페이에 반영됩니다':status==='canceled'?'취소했습니다 — 시수 0':'예정으로 되돌렸습니다');
+  closeModal(); render();
+}
+function deleteSession(id){
+  const s=DB.sessions.find(x=>x.id===id); s.deleted=true;
+  closeModal(); toast('삭제했습니다 (soft delete — 이력은 남습니다)'); render();
+}
+function bulkComplete(){
+  if(!isManager()) return;
+  const days=Array.from({length:7},(_,i)=>addDays(UI.weekStart,i));
+  const list=visibleSessions().filter(s=>s.sessionDate>=days[0]&&s.sessionDate<=days[6]&&attendanceDue(s));
+  list.forEach(s=>{ s.status='completed'; s.statusChangedBy=meId(); });
+  toast(`${list.length}건을 완료로 확정했습니다`); render();
+}
+
+function openApprove(instructorId){
+  const pend=DB.reports.filter(r=>r.status==='submitted' && DB.sessions.find(s=>s.id===r.sessionId && s.instructorId===instructorId));
+  if(!pend.length){ toast('승인 대기 리포트가 없습니다'); return; }
+  UI.modal={type:'approve', reportId:pend[0].id, reason:''};
+  renderModal();
+}
+function modalApprove(m){
+  const r=DB.reports.find(x=>x.id===m.reportId);
+  const s=DB.sessions.find(x=>x.id===r.sessionId);
+  return `<div class="modal" onclick="event.stopPropagation()">
+    <div class="mh"><h3>리포트 승인</h3><p>${s.sessionDate} (${WD[weekdayOf(s.sessionDate)]}) ${s.startTime} · ${esc(subjectOf(s.subjectId).name)} · ${esc(nameOfStudent(r.studentId))} · 작성 ${esc(nameOfUser(r.authorId))}</p></div>
+    <div class="mb">
+      <div><span class="badge warning">제출됨</span></div>
+      <div style="background:var(--inset);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;white-space:pre-wrap">${esc(r.content)}</div>
+      <div class="alert danger">
+        <b>반려 사유 (반려 시 필수)</b>
+        <input class="mini" style="width:100%;margin-top:4px" placeholder="예) 다음 회차 계획을 한 줄 더 구체적으로" value="${esc(m.reason)}" oninput="UI.modal.reason=this.value">
+        <div class="note" style="margin-top:4px">반려하면 강사 화면에서 다시 수정할 수 있습니다 (승인된 리포트는 잠깁니다).</div>
+      </div>
+    </div>
+    <div class="mf"><span class="note">학부모 공유는 2차</span><div class="spacer"></div>
+      <button class="btn" onclick="closeModal()">닫기</button>
+      <button class="btn danger" onclick="decide('rejected')">반려</button>
+      <button class="btn primary" onclick="decide('approved')">승인</button></div>
+  </div>`;
+}
+function decide(status){
+  const m=UI.modal; const r=DB.reports.find(x=>x.id===m.reportId);
+  if(status==='rejected' && !m.reason.trim()){ toast('반려 사유는 필수입니다 (A17)'); return; }
+  r.status=status; r.rejectReason = status==='rejected'? m.reason.trim() : null;
+  closeModal(); toast(status==='approved'?'승인했습니다 — 강사는 더 이상 수정할 수 없습니다':'반려했습니다 — 강사 할 일에 다시 나타납니다'); render();
+}
+
+// ── CSV ──
+function exportCsv(kind){
+  let rows=[];
+  if(kind==='instructor'){
+    rows.push(['강사','날짜','요일','시간','과목','학생','시수(분)','페이']);
+    DB.sessions.filter(s=>!s.deleted&&s.status==='completed'&&s.sessionDate>=UI.period.from&&s.sessionDate<=UI.period.to)
+      .sort((a,b)=>a.sessionDate.localeCompare(b.sessionDate))
+      .forEach(s=>rows.push([nameOfUser(s.instructorId),s.sessionDate,WD[weekdayOf(s.sessionDate)],`${s.startTime}-${endTimeOf(s)}`,
+        subjectOf(s.subjectId).name,s.studentIds.map(nameOfStudent).join(' '),s.durationMinutes,payOf(s)]));
+  } else {
+    rows.push(['학생','학년','상태','날짜','시간','과목','강사','시수(분)']);
+    DB.sessions.filter(s=>!s.deleted&&s.status==='completed'&&s.sessionDate>=UI.period.from&&s.sessionDate<=UI.period.to)
+      .forEach(s=>s.studentIds.forEach(id=>{ const st=DB.students.find(x=>x.id===id);
+        rows.push([st.name,gradeLabel(st.grade),st.status,s.sessionDate,`${s.startTime}-${endTimeOf(s)}`,subjectOf(s.subjectId).name,nameOfUser(s.instructorId),s.durationMinutes]); }));
+  }
+  const csv='﻿'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`taco-${kind}-${UI.period.from}_${UI.period.to}.csv`; a.click();
+  toast('CSV를 내려받았습니다');
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+render();
+</script>
+</body>
+</html>
