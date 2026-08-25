@@ -20,6 +20,7 @@ VIEWS.home = function () {
   const nowS = today.find(isNow);
   const next = live.find(s => toMin(s.start) > NOW_MIN);
   const miss = missingReports().sort((a, b) => b.date.localeCompare(a.date));
+  const unchk = myUncheckedAttendance().reverse();          // 최근 것부터 (A27)
   const pend = pendingReports();
   const open = settle(OPEN_PERIOD);
 
@@ -50,6 +51,12 @@ VIEWS.home = function () {
     <span class="ic">!</span>
     <span><b>안 쓴 리포트 ${miss.length}건</b>
       <span>${mdw(miss[0].date)} ${esc(stu(miss[0].studentId).name)} 학생 · 지금 쓰면 ${won(penaltyNow(miss[0]).amount)} 차감</span></span>
+    <span class="go">›</span></button>` : ''}
+  ${/* A27 — 출결은 리포트와 별개 축이라 배너도 따로 뜬다. 찍지 않으면 시수·페이가 잡히지 않는다 */
+    unchk.length ? `<button class="banner amber" onclick="openSession(${unchk[0].id})">
+    <span class="ic">◷</span>
+    <span><b>출결을 안 찍은 수업 ${unchk.length}건</b>
+      <span>${mdw(unchk[0].date)} ${esc(stu(unchk[0].studentId).name)} 학생 · 찍어야 시수와 정산에 들어갑니다 · 회차당 한 번</span></span>
     <span class="go">›</span></button>` : ''}
 
   <div class="cols side-right">

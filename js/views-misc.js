@@ -117,8 +117,9 @@ VIEWS.history = function () {
   </div>
 
   <div class="grid4">
-    <div class="stat"><i>진행 수업</i><b class="num">${r.held.length}건</b>
-      <span>시수 ${r.held.reduce((a, s) => a + s.dur, 0) / 60}시간</span></div>
+    <div class="stat"><i>출결 확정</i><b class="num">${r.held.length}건</b>
+      <span>시수 ${r.held.reduce((a, s) => a + s.dur, 0) / 60}시간${
+        r.attPend.length ? ` · 미체크 ${r.attPend.length}건 제외` : ''}</span></div>
     <div class="stat green"><i>리포트 완료</i><b class="num">${r.done.length}건</b>
       <span>시수 ${r.doneH}시간 · 정산 확정</span></div>
     <div class="stat red"><i>리포트 미작성</i><b class="num">${r.miss.length}건</b>
@@ -143,6 +144,9 @@ VIEWS.history = function () {
         <div class="tot"><span>${tab === 'last' ? '실지급액' : '실지급 예정액'}</span><b class="num">${won(r.net)}</b></div>
         ${r.missH ? `<div class="warn"><span>⚠ 리포트 미작성 ${r.missH}시간은 아직 빠져 있습니다</span>
           <b>${won(r.missH * ME.rate)}</b></div>` : ''}
+        ${/* A27 — 출결을 안 찍으면 리포트와 무관하게 정산에 들어가지 않는다 */
+          r.attPend.length ? `<div class="warn"><span>◷ 출결 미체크 ${r.attPendH}시간은 아직 계산에 없습니다</span>
+          <b>${won(r.attPendH * ME.rate)}</b></div>` : ''}
         <div class="note" style="color:#64748b;margin-top:9px">
           ${tab === 'last' ? `이 급여에 포함된 수업 ${r.held.length}건만 아래에 표시됩니다.`
             : `이 달 남은 예정 수업 ${r.future.length}건 · ${r.future.reduce((a, s) => a + s.dur, 0) / 60}시간`}</div>

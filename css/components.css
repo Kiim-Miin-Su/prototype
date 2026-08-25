@@ -311,3 +311,38 @@
 .tone .no{ color:var(--red); text-decoration:line-through; }
 .tone .ar{ color:var(--fg-subtle); }
 .tone .yes{ color:var(--green); font-weight:700; flex:1; min-width:140px; }
+
+/* ══ 출결 1차 체크 (A27) ══════════════════════════════════════
+   리포트 폼과 같은 카드 언어를 쓰되, 축이 다르다는 것이 보이도록 톤만 바꾼다.
+   색·간격·모서리는 전부 토큰이다 — 하드코딩 금지 (AGENT.md §5.3)              */
+.banner.amber{ background:var(--amber-soft); border-color:var(--amber-line); }
+.banner.amber .ic{ background:var(--amber); }
+.banner.amber .go{ color:var(--amber); }
+
+.att{ border:1px solid var(--line-2); border-radius:var(--r); padding:11px 13px; margin-bottom:12px;
+  background:var(--inset); }
+.att__t{ display:flex; align-items:center; gap:7px; font-size:12px; font-weight:800;
+  color:var(--fg-muted); letter-spacing:-.02em; }
+.att__t b{ font-size:14px; color:var(--fg); }
+.att__once{ margin-left:auto; font-size:10.5px; font-weight:700; color:var(--fg-subtle);
+  border:1px solid var(--line-2); border-radius:999px; padding:2px 8px; background:var(--raised); }
+.att__n{ margin-top:5px; font-size:11.5px; line-height:1.55; color:var(--fg-muted); }
+.att__b{ display:flex; gap:8px; margin-top:10px; }
+.att__b .btn{ flex:1; }
+
+.att.ask{ background:var(--blue-soft); border-color:var(--blue-line); }
+.att.ask .att__t{ color:var(--blue); }
+.att.ask .att__once{ color:var(--blue); border-color:var(--blue-line); }
+.att.wait{ background:var(--amber-soft); border-color:var(--amber-line); }
+.att.wait .att__t{ color:var(--amber); }
+.att.ok{ background:var(--green-soft); border-color:var(--green); }
+.att.ok .att__t{ color:var(--green-deep); }
+.att.no{ background:var(--red-soft); border-color:var(--red-line); }
+.att.no .att__t{ color:var(--red-deep); }
+
+/* 매니저 대행 확정 — "강사 확인 없음" 이 초록으로 보이면 안 된다 (A27) */
+.att.proxy{ background:var(--subtle); border-color:var(--line-2); }
+.att.proxy .att__t{ color:var(--fg-muted); }
+
+/* 차감이 이미 확정된 리포트 — 경고가 아니라 결과다 */
+.penalty.done{ background:var(--green-deep); }

@@ -162,7 +162,12 @@ const canSeePeriod = p => p === LAST_PAYOUT.period || p === OPEN_PERIOD;
 function settle(period) {
   const list = SESS.filter(s => s.date.startsWith(period))
     .sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start));
-  const held = list.filter(s => !isCanceled(s) && isPast(s));
+  /* 출결 축(A10 · A27) — 확정되지 않은 회차는 시수·페이에 아직 잡히지 않는다.
+     리포트 축과 별개다: 리포트를 다 써도 출결이 안 찍히면 정산에 안 들어가고,
+     출결을 찍어도 리포트를 안 쓰면 차감이 붙을 뿐 시수는 잡힌다.               */
+  const past = list.filter(s => !isCanceled(s) && isPast(s));
+  const attPend = past.filter(s => attendanceState(s) === 'pending');
+  const held = past.filter(attCounts);
   const done = held.filter(s => s.report === 'approved' || s.report === 'submitted');
   const miss = held.filter(s => s.report === 'none' || s.report === 'draft');
   const doneH = done.reduce((a, s) => a + s.dur, 0) / 60;
@@ -176,8 +181,9 @@ function settle(period) {
   const penCnt = done.filter(s => latePenalty(s) > 0).length;
   const tax = Math.round((gross - pen) * 0.033);
   const future = list.filter(s => !isCanceled(s) && !isPast(s));
-  return { period, list, held, done, miss, doneH, missH, gross, byKind, pen, penCnt, tax,
-    net: gross - pen - tax, future };
+  const attPendH = attPend.reduce((a, s) => a + s.dur, 0) / 60;
+  return { period, list, past, attPend, attPendH, held, done, miss, doneH, missH,
+    gross, byKind, pen, penCnt, tax, net: gross - pen - tax, future };
 }
 
 /* ══ AI 프롬프트 (v20 s24·s29) ══════════════════════════════
@@ -343,3 +349,63 @@ const TONE_RULES = [
   ['이 점수면 어렵습니다', '지금부터 준비하면 채워 나갈 수 있는 구간입니다'],
 ];
 const TONE_BANNED = '성격 · 능력 · 등급 · 합격 가능성 · 다른 학생과의 비교';
+
+/* ══ A27 · 출결 축 ══════════════════════════════════════════
+   첫 체크는 담당 강사가 **딱 한 번**, 그 뒤 CRUD 는 매니저 이상.
+   진행 축(시계)·리포트 축과 서로를 보지 않는다 (A9).
+   - s.att          {by, at, result}  강사 1차 체크. 한 번 쓰이면 다시 안 바뀐다
+   - s.statusChanged{by, at}          그 뒤의 변경. 매니저 이상만
+   - 매니저가 "대신" 확정하면 s.att 는 비어 있고 statusChanged 만 찬다.
+     이 구분이 있어야 "강사 확인 없이 처리된 회차"를 나중에도 셀 수 있다.        */
+
+/** 출결 현재값 — pending | completed | canceled */
+function attendanceState(s) {
+  if (isCanceled(s)) return 'canceled';          // 관리자 취소는 그 자체로 확정이다
+  if (s.statusChanged) return s.status;          // 매니저가 마지막으로 정한 값
+  if (s.att) return s.att.result;                // 강사 1차 체크값
+  return 'pending';
+}
+const attConfirmed = s => attendanceState(s) !== 'pending';
+/** 시수·페이에 잡히는 회차인가 (A10) — 리포트 축은 보지 않는다 */
+const attCounts = s => attendanceState(s) === 'completed';
+
+/** 지금 이 사용자가 출결에 무엇을 할 수 있는가 — 화면마다 다시 쓰지 않는다 (A27) */
+function canEditAttendance(s, me = ME) {
+  if (!s) return 'readonly';
+  if (me.role !== '강사') return 'manage';             // 매니저 이상은 언제든 정정
+  if (isCanceled(s)) return 'readonly';                // 관리자 취소분은 손대지 않는다
+  if (!isPast(s)) return 'readonly';                   // 아직 안 끝났다
+  if (s.att || s.statusChanged) return 'readonly';     // 이미 한 번 찍혔다
+  return 'first';                                      // 지금 딱 한 번
+}
+
+/** 강사 1차 체크 — 성공하면 {ok:true}, 아니면 이유를 돌려준다 (서버가 같은 판정을 다시 한다) */
+function firstCheck(s, result) {
+  const can = canEditAttendance(s);
+  if (can === 'readonly') {
+    if (!isPast(s)) return { ok: false, msg: '수업이 끝난 뒤에 체크할 수 있습니다' };
+    return { ok: false, msg: '이미 체크된 출결입니다 — 정정은 매니저에게 요청하세요' };
+  }
+  if (can === 'manage') return { ok: false, msg: '매니저 정정 경로로 처리하세요' };
+  if (result !== 'completed' && result !== 'canceled') return { ok: false, msg: '알 수 없는 값입니다' };
+  s.att = { by: ME.name, at: `${TODAY} ${fromMin(NOW_MIN)}`, result };
+  s.status = result;
+  return { ok: true, msg: result === 'completed' ? '출결을 완료로 확정했습니다' : '출결을 취소로 확정했습니다' };
+}
+
+/** 매니저 '출결 대기' 큐 (A10 · A27) — 종료 경과 ∧ 아직 아무도 안 찍음. 오래된 순 */
+const pendingAttendance = () => SESS
+  .filter(s => !isCanceled(s) && isPast(s) && attendanceState(s) === 'pending')
+  .sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+
+/** 강사 화면에서 "내가 아직 안 찍은 것" — 홈 배너용 */
+const myUncheckedAttendance = () => pendingAttendance().filter(s => canEditAttendance(s) === 'first');
+
+/** 출결 잠금 사유 문구 — 왜 못 고치는지 그 자리에 적는다 */
+function attendanceLockNote(s) {
+  if (isCanceled(s)) return '관리자가 취소한 수업입니다';
+  if (s.att) return `${s.att.by} 님이 ${s.att.at}에 ${s.att.result === 'completed' ? '완료' : '취소'}로 확정했습니다`;
+  if (s.statusChanged) return `${s.statusChanged.by} 님이 ${s.statusChanged.at}에 처리했습니다 · 강사 확인 없음`;
+  if (!isPast(s)) return '수업이 끝나면 체크할 수 있습니다';
+  return '';
+}

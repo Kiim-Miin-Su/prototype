@@ -43,6 +43,87 @@ VIEWS.reports = function () {
       <span>보관되어 있지만 강사 화면에서는 열리지 않습니다 · 매니저 이상만 조회</span></div></div>`;
 };
 
+
+
+/* ══ 차감 박스 (A20 · A25) ══════════════════════════════════
+   세 리포트 폼이 공유한다. 제출 전에는 "지금 제출하면 얼마",
+   제출 뒤에는 "그때 얼마가 확정됐는지"를 보여 준다 — 이미 낸 리포트에
+   "지금 제출하면 −10,000" 을 띄우면 강사는 또 깎이는 줄 안다.            */
+function penaltyBox(s, en) {
+  const amt = n => (n ? '− ' + n.toLocaleString('ko-KR') : '0원');
+  const T = en
+    ? { fixedLate: 'A late-submission deduction is final', fixedNone: 'Submitted on time — no deduction',
+        approved: 'Approved — nothing left to change.', pending: 'Waiting for the manager to review.',
+        sent: at => `Submitted ${at}.`, final: 'Final deduction',
+        left: m => `<b>${m} min</b> until the next step. `, must: 'The report is still required, however late.',
+        now: 'If you submit now', in1: 'After 1 hour', in4: 'After 4 hours', within1: 'Within 1 hour' }
+    : { fixedLate: '제출이 늦어 차감이 확정됐습니다', fixedNone: '제때 제출해 차감이 없습니다',
+        approved: '승인 완료 — 더 고칠 것이 없습니다.', pending: '관리자 확인을 기다리는 중입니다.',
+        sent: at => `제출 ${at}.`, final: '확정 차감',
+        left: m => `다음 차감까지 <b>${m}분</b> 남았습니다. `, must: '늦어도 리포트는 <b>반드시</b> 써야 합니다.',
+        now: '지금 제출하면', in1: '1시간이 지나면', in4: '4시간이 지나면', within1: '1시간 이내였다면' };
+
+  /* 이미 낸 리포트에 "지금 제출하면 −10,000" 을 띄우면 강사는 또 깎이는 줄 안다 */
+  if (s.report === 'submitted' || s.report === 'approved') {
+    const fixed = latePenalty(s);
+    return `<div class="penalty ${fixed ? '' : 'done'}">
+      <div class="bd"><div class="lead">${fixed ? T.fixedLate : T.fixedNone}</div>
+        <div class="sub">${s.report === 'approved' ? T.approved : T.pending}
+          ${s.submittedAt ? T.sent(esc(s.submittedAt)) : ''}</div></div>
+      <div class="cases">
+        <div class="case ${fixed ? '' : 'ok'}"><div class="w">${T.final}</div><div class="a">${amt(fixed)}</div></div>
+      </div></div>`;
+  }
+  const pn = penaltyNow(s);
+  return `<div class="penalty">
+    <div class="bd"><div class="lead">${pn.head}</div>
+      <div class="sub">${pn.left != null ? T.left(pn.left) : ''}${T.must}</div></div>
+    <div class="cases">
+      <div class="case ${pn.amount ? '' : 'ok'}"><div class="w">${T.now}</div><div class="a">${amt(pn.amount)}</div></div>
+      ${pn.next ? `<div class="case"><div class="w">${pn.next === 5000 ? T.in1 : T.in4}</div>
+        <div class="a">${amt(pn.next)}</div></div>`
+        : `<div class="case ok"><div class="w">${T.within1}</div><div class="a">0원</div></div>`}
+    </div></div>`;
+}
+
+/* ══ 출결 1차 체크 (A27) ══════════════════════════════════════
+   리포트 탭과 별개 축이라 탭 위 고정 위치에 둔다 — 탭을 옮겨도 사라지지 않는다.
+   권한 판정은 rules.js 의 canEditAttendance() 하나만 부른다. 여기서 다시 쓰지 않는다. */
+function attendanceStrip(s) {
+  const mode = canEditAttendance(s);
+  const state = attendanceState(s);
+  if (mode === 'readonly' && state === 'pending') {
+    return `<div class="att wait"><div class="att__t">출결 <b>대기</b></div>
+      <div class="att__n">${esc(attendanceLockNote(s))}</div></div>`;
+  }
+  if (mode === 'first') {
+    return `<div class="att ask">
+      <div class="att__t">출결 <b>1차 체크</b><span class="att__once">회차당 한 번</span></div>
+      <div class="att__n">수업을 한 사람이 먼저 확인합니다. 찍은 뒤에는 매니저만 고칠 수 있습니다.</div>
+      <div class="att__b">
+        <button class="btn go" onclick="doFirstCheck(${s.id},'completed')">수업 완료</button>
+        <button class="btn ghost" onclick="doFirstCheck(${s.id},'canceled')">수업 못 함</button>
+      </div></div>`;
+  }
+  const label = state === 'completed' ? '완료' : '취소';
+  const proxy = !s.att && !!s.statusChanged;            // 매니저가 대신 찍은 회차 (A27)
+  const tone = proxy ? 'proxy' : state === 'completed' ? 'ok' : 'no';
+  const byMe = !!(s.att && s.att.by === ME.name);
+  return `<div class="att ${tone}">
+    <div class="att__t">출결 <b>${label}</b>
+      <span class="att__once">${byMe ? '내가 확정' : s.att ? '강사 확정' : '강사 확인 없음'}</span></div>
+    <div class="att__n">${esc(attendanceLockNote(s))}</div>
+    ${isCanceled(s) ? '' : '<div class="att__n">정정이 필요하면 매니저에게 요청하세요.</div>'}</div>`;
+}
+
+/** 강사 1차 체크 실행 — 판정은 rules.js 가 한다 */
+function doFirstCheck(id, result) {
+  const s = sess(id); if (!s) return;
+  const r = firstCheck(s, result);
+  toast(r.msg);
+  if (r.ok) renderLayer(), render();
+}
+
 /* ── 수업 패널 열기 ── */
 function openSession(id) {
   const s = sess(id); if (!s) return;
@@ -94,6 +175,7 @@ function panelHtml() {
       <button class="${UI.ptab === 'change' ? 'on' : ''}" ${cancel ? 'disabled' : ''}
         onclick="UI.ptab='change';renderLayer()">스케줄 변경</button></div>
     <div class="pbody">
+      ${attendanceStrip(s)}
       ${cancel ? `<div class="box err"><b>관리자가 취소한 수업입니다</b>${esc(s.canceled.reason)}<br>
         <span class="note">${esc(s.canceled.by)} · ${esc(s.canceled.at)}</span>
         ${s.canceled.makeup ? `<br><b style="display:inline">보강</b> ${esc(s.canceled.makeup)}` : ''}</div>` : ''}
@@ -107,20 +189,8 @@ function tabReport(s) {
   const st = stu(s.studentId), f = UI.form, c = contentChecks(f.content);
   const okLen = c.len >= 60, all3 = c.a && c.b && c.c;
   const books = st.books.flatMap(b => b.items.map(i => i.n));
-  const pn = penaltyNow(s);
-  const amt = n => (n ? '− ' + n.toLocaleString('ko-KR') : '0원');
   return `
-  <!-- ② 차감은 리포트 화면에서 가장 위, 가장 크게 -->
-  <div class="penalty">
-    <div class="bd"><div class="lead">${pn.head}</div>
-      <div class="sub">${pn.left != null ? `다음 차감까지 <b>${pn.left}분</b> 남았습니다. ` : ''}늦어도 리포트는 <b>반드시</b> 써야 합니다.</div></div>
-    <div class="cases">
-      <div class="case ${pn.amount ? '' : 'ok'}"><div class="w">지금 제출하면</div><div class="a">${amt(pn.amount)}</div></div>
-      ${pn.next ? `<div class="case"><div class="w">${pn.next === 5000 ? '1시간이 지나면' : '4시간이 지나면'}</div>
-        <div class="a">${amt(pn.next)}</div></div>`
-        : `<div class="case ok"><div class="w">1시간 이내였다면</div><div class="a">0원</div></div>`}
-    </div>
-  </div>
+  ${penaltyBox(s)}
 
   <div class="fld"><label><span class="n">1</span>학생 · 학년</label>
     <input class="ro" value="${esc(st.name)} · ${st.grade}" readonly></div>
@@ -170,16 +240,8 @@ function toneBox() {
 function tabDev(s) {
   const st = stu(s.studentId), f = UI.form, en = f.lang === 'en';
   const c = devChecks(f.dev);
-  const pn = penaltyNow(s);
-  const amt = n => (n ? '− ' + n.toLocaleString('ko-KR') : '0원');
   return `
-  <div class="penalty">
-    <div class="bd"><div class="lead">${pn.head}</div>
-      <div class="sub">${pn.left != null ? `다음 차감까지 <b>${pn.left}분</b> 남았습니다. ` : ''}늦어도 리포트는 <b>반드시</b> 써야 합니다.</div></div>
-    <div class="cases"><div class="case ${pn.amount ? '' : 'ok'}"><div class="w">지금 제출하면</div>
-      <div class="a">${amt(pn.amount)}</div></div>
-      ${pn.next ? `<div class="case"><div class="w">${pn.next === 5000 ? '1시간이 지나면' : '4시간이 지나면'}</div>
-        <div class="a">${amt(pn.next)}</div></div>` : ''}</div></div>
+  ${penaltyBox(s, en)}
 
   <div class="fld"><label><span class="n">1</span>${en ? 'Student · Grade' : '학생 · 학년'}</label>
     <input class="ro" value="${esc(st.name)} · ${st.grade}" readonly></div>
@@ -224,8 +286,6 @@ function tabDev(s) {
 function tabAssess(s) {
   const st = stu(s.studentId), f = UI.form, en = f.lang === 'en';
   const a = f.assess, c = assessChecks(a);
-  const pn = penaltyNow(s);
-  const amt = n => (n ? '− ' + n.toLocaleString('ko-KR') : '0원');
   const toggle = (key, val) => `UI.form.assess['${key}']=(UI.form.assess['${key}']||[]).includes('${val}')
     ? UI.form.assess['${key}'].filter(x=>x!=='${val}') : [...(UI.form.assess['${key}']||[]),'${val}'];renderLayer()`;
   const pickRow = (id, key, list, ok) => `<div class="fld" id="${id}">
@@ -236,13 +296,7 @@ function tabAssess(s) {
     ${f.touched && !ok ? `<div class="cnt"><span class="v bad">${en ? 'Pick at least one' : '하나 이상 골라 주세요'}</span></div>` : ''}</div>`;
 
   return `
-  <div class="penalty">
-    <div class="bd"><div class="lead">${pn.head}</div>
-      <div class="sub">${pn.left != null ? `다음 차감까지 <b>${pn.left}분</b> 남았습니다. ` : ''}늦어도 리포트는 <b>반드시</b> 써야 합니다.</div></div>
-    <div class="cases"><div class="case ${pn.amount ? '' : 'ok'}"><div class="w">지금 제출하면</div>
-      <div class="a">${amt(pn.amount)}</div></div>
-      ${pn.next ? `<div class="case"><div class="w">${pn.next === 5000 ? '1시간이 지나면' : '4시간이 지나면'}</div>
-        <div class="a">${amt(pn.next)}</div></div>` : ''}</div></div>
+  ${penaltyBox(s, en)}
 
   <div class="fld"><label><span class="n">1</span>${en ? 'Student · Grade' : '학생 · 학년'}</label>
     <input class="ro" value="${esc(st.name)} · ${st.grade}" readonly></div>

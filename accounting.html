@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TACO ERP · 회계 — 입금 내역 / 법인카드 승인</title>
+<link rel="stylesheet" href="css/tokens.css">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--fg);font-family:var(--f-sans);
+       font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:28px var(--pad) 64px}
+  h1{font-size:22px;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--fg-muted);margin-top:4px;font-size:13px}
+
+  .tabs{display:flex;gap:6px;margin:22px 0 18px;border-bottom:1px solid var(--line)}
+  .tab{appearance:none;border:0;background:none;font:inherit;font-weight:700;color:var(--fg-subtle);
+       padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab[aria-selected=true]{color:var(--fg);border-bottom-color:var(--blue)}
+  .tab .n{display:inline-block;min-width:18px;padding:0 5px;margin-left:6px;border-radius:9px;
+          background:var(--subtle);color:var(--fg-muted);font-size:11px;font-weight:800}
+  .tab[aria-selected=true] .n{background:var(--blue);color:var(--raised)}
+
+  .card{background:var(--raised);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+  .card+.card{margin-top:var(--gap)}
+  .card-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .card-h h2{font-size:15px;font-weight:800}
+  .card-h .hint{color:var(--fg-subtle);font-size:12px;font-weight:500}
+  .spacer{flex:1}
+
+  /* 요약 */
+  .sum{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);margin-bottom:var(--gap)}
+  .sum .box{background:var(--raised);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+  .sum .lb{font-size:12px;color:var(--fg-muted);font-weight:600}
+  .sum .vl{font-size:20px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+  .sum .box.delta .vl.short{color:var(--red)} .sum .box.delta .vl.over{color:var(--blue)}
+  .sum .box.delta .vl.match{color:var(--green)}
+
+  /* 표 */
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+  th{font-size:12px;color:var(--fg-muted);font-weight:700;background:var(--inset)}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover{background:var(--inset)}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .who{font-weight:700} .meta{color:var(--fg-subtle);font-size:12px}
+
+  /* 금액 입력 — money.bindInput 이 .money-input 을 붙인다 */
+  .money-input{width:150px;padding:8px 11px;text-align:right;font:inherit;font-weight:700;
+    font-variant-numeric:tabular-nums;border:1px solid var(--line-2);border-radius:var(--r-sm);
+    background:var(--raised);color:var(--fg);outline:none;transition:border-color .12s,box-shadow .12s}
+  .money-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+  .money-input::placeholder{color:var(--fg-subtle);font-weight:600;opacity:1}
+  .money-input.is-readonly{background:var(--subtle);color:var(--fg-muted);border-style:dashed;cursor:not-allowed}
+  .money-input.short{border-color:var(--red-line);background:var(--red-soft)}
+  .money-input.over{border-color:var(--blue-line);background:var(--blue-soft)}
+  .money-input.match{border-color:var(--green-line);background:var(--green-soft)}
+
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11.5px;font-weight:800;white-space:nowrap}
+  .badge.neutral{background:var(--subtle);color:var(--fg-subtle)}
+  .badge.green{background:var(--green-soft);color:var(--green);border:1px solid var(--green-line)}
+  .badge.red{background:var(--red-soft);color:var(--red);border:1px solid var(--red-line)}
+  .badge.blue{background:var(--blue-soft);color:var(--blue-deep);border:1px solid var(--blue-line)}
+  .badge.amber{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber-line)}
+
+  .reason{width:100%;min-width:150px;padding:7px 10px;font:inherit;font-size:13px;
+    border:1px solid var(--line-2);border-radius:var(--r-sm);background:var(--raised);outline:none}
+  .reason:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+  .reason.need{border-color:var(--red);background:var(--red-soft)}
+  .reason[disabled]{background:var(--subtle);border-style:dashed;color:var(--fg-subtle)}
+
+  .btn{appearance:none;font:inherit;font-weight:700;border-radius:var(--r-sm);padding:9px 15px;
+       cursor:pointer;border:1px solid transparent;transition:filter .12s}
+  .btn:hover:not(:disabled){filter:brightness(.96)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--blue);color:var(--raised)}
+  .btn.dark{background:var(--navy);color:var(--raised)}
+  .btn.ghost{background:var(--raised);border-color:var(--line-2);color:var(--fg)}
+  .btn.danger{background:var(--raised);border-color:var(--red-line);color:var(--red)}
+  .btn.sm{padding:6px 11px;font-size:12.5px}
+
+  /* 카드 승인 2단 */
+  .two{display:grid;grid-template-columns:378px 1fr;gap:var(--gap);align-items:start}
+  .req{padding:13px 16px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:10px;align-items:center}
+  .req:last-child{border-bottom:0}
+  .req[aria-current=true]{background:var(--blue-soft);box-shadow:inset 3px 0 0 var(--blue)}
+  .req .amt{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+  .det{padding:18px}
+  .row{display:flex;gap:14px;padding:10px 0;border-bottom:1px dashed var(--line)}
+  .row:last-of-type{border-bottom:0}
+  .row .k{width:88px;flex:none;color:var(--fg-muted);font-size:12.5px;font-weight:700;padding-top:2px}
+  .row .v{flex:1}
+  .approve{margin-top:16px;padding:16px;background:var(--inset);border:1px solid var(--line);border-radius:var(--r)}
+  .approve .lbl{font-size:12.5px;font-weight:700;color:var(--fg-muted);margin-bottom:7px}
+  .approve .line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .acts{display:flex;gap:8px;margin-top:14px}
+
+  .note{margin-top:18px;padding:13px 16px;background:var(--amber-soft);border:1px solid var(--amber-line);
+        border-radius:var(--r);font-size:12.5px;color:var(--amber-deep);line-height:1.65}
+  .note b{font-weight:800}
+  .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--raised);padding:1px 5px;
+    border-radius:5px;border:1px solid var(--amber-line);font-size:11.5px}
+  .hidden{display:none}
+  .receipt{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:var(--r-sm);
+    background:var(--subtle);font-size:12px;font-weight:700;color:var(--fg-muted)}
+  .receipt.none{background:var(--red-soft);color:var(--red);border:1px solid var(--red-line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>회계</h1>
+  <p class="sub">기대값은 <b>placeholder</b> 로만 보여 주고, 실측값은 사람이 직접 넣습니다. 모든 금액 입력은 <code>money.bindInput()</code> 하나를 지납니다.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true"  data-tab="dep">입금 내역<span class="n" id="depN">0</span></button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="card">법인 카드 사용 승인<span class="n" id="cardN">0</span></button>
+  </div>
+
+  <!-- ───────────────────────── 입금 내역 ───────────────────────── -->
+  <section id="pane-dep">
+    <div class="sum">
+      <div class="box"><div class="lb">들어와야 할 금액</div><div class="vl" id="sExp">—</div></div>
+      <div class="box"><div class="lb">입력된 금액</div><div class="vl" id="sAct">—</div></div>
+      <div class="box delta"><div class="lb">차액</div><div class="vl" id="sDelta">—</div></div>
+      <div class="box"><div class="lb">대사 완료</div><div class="vl" id="sDone">—</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <h2>2026년 8월 입금</h2>
+        <span class="hint">매니저 이상만 입력할 수 있습니다</span>
+        <span class="spacer"></span>
+        <button class="btn ghost sm" id="roleBtn">역할: 매니저</button>
+        <button class="btn dark sm" id="reconcileBtn">일괄 확정</button>
+      </div>
+      <table>
+        <thead><tr>
+          <th style="width:230px">항목</th><th style="width:120px">청구일</th>
+          <th class="num" style="width:130px">들어와야 할 금액</th>
+          <th class="num" style="width:172px">실제 입금액</th>
+          <th style="width:130px">차액</th><th>사유</th>
+        </tr></thead>
+        <tbody id="depBody"></tbody>
+      </table>
+    </div>
+
+    <div class="note">
+      <b>왜 기대값을 <code>value</code> 가 아니라 <code>placeholder</code> 에 넣나.</b><br>
+      기대값을 미리 채워 두면 사람이 확인하지 않고 그대로 저장합니다. 비어 있어야
+      「아직 아무도 확인하지 않음(<code>null</code>)」과 「확인해서 이 금액(<code>0</code> 포함)」이 구분되고,
+      그 구분이 대사(reconciliation)의 전부입니다. — <code>docs/ACCOUNTING.md §0</code>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 법인 카드 승인 ─────────────────────── -->
+  <section id="pane-card" class="hidden">
+    <div class="two">
+      <div class="card">
+        <div class="card-h"><h2>신청 목록</h2><span class="spacer"></span><span class="hint" id="cardHint"></span></div>
+        <div id="reqList"></div>
+      </div>
+      <div class="card"><div class="det" id="reqDetail"></div></div>
+    </div>
+    <div class="note">
+      <b>같은 컴포넌트입니다.</b> 입금 내역의 「들어와야 할 금액 → 실제 입금액」과
+      법인카드의 「신청 금액 → 승인 금액」은 <code>ExpectedAmountInput</code> 하나로 처리합니다.
+      제안하는 쪽과 확정하는 쪽이 항상 다르다는 것만 지키면 두 업무는 같은 모양입니다. (불변식 I-7)
+    </div>
+  </section>
+</div>
+
+<script src="js/money.js"></script>
+<script>
+/* ── 데모 데이터 ─────────────────────────────────────────────── */
+let ROLE = 'manager';                       // 'staff' | 'manager'
+const ME  = { id: 'u9', name: '김민선' };
+
+const DEPOSITS = [
+  { id:'d1', label:'8월 수강료',        who:'고은성 · 학부모 최지영', billedOn:'2026-08-01', expected:1200000, actual:1200000, reason:'',  state:'entered' },
+  { id:'d2', label:'8월 수강료',        who:'양찬욱 · 학부모 양민호', billedOn:'2026-08-01', expected: 960000, actual: 910000, reason:'',  state:'entered' },
+  { id:'d3', label:'8월 수강료',        who:'이담흔 · 학부모 이수경', billedOn:'2026-08-01', expected: 720000, actual:   null, reason:'',  state:'pending' },
+  { id:'d4', label:'교재비 · AP World', who:'고은성',                 billedOn:'2026-08-09', expected:  38000, actual:  38000, reason:'',  state:'reconciled' },
+  { id:'d5', label:'7월 미수금 이월',    who:'정서우 · 학부모 정하나', billedOn:'2026-08-01', expected: 150000, actual: 200000, reason:'',  state:'entered' },
+  { id:'d6', label:'8월 수강료',        who:'한도윤 · 학부모 한지훈', billedOn:'2026-08-01', expected: 640000, actual:   null, reason:'',  state:'pending' },
+];
+
+const CARDS = [
+  { id:'c1', requester:'김범준', requesterId:'u1', usedOn:'2026-08-18', merchant:'교보문고 광화문점',
+    purpose:'AP World History Unit 5 부교재 3권', account:'도서·교재비',
+    requested:87000, approved:null, reason:'', receipt:true,  state:'submitted' },
+  { id:'c2', requester:'김민선', requesterId:'u9', usedOn:'2026-08-20', merchant:'쿠팡',
+    purpose:'키즈룸 교구 보충 (색연필·스티커)', account:'소모품비',
+    requested:54300, approved:null, reason:'', receipt:true,  state:'submitted' },
+  { id:'c3', requester:'양지원', requesterId:'u4', usedOn:'2026-08-21', merchant:'스타벅스 강남대로점',
+    purpose:'학부모 상담 다과', account:'접대비',
+    requested:36500, approved:null, reason:'', receipt:false, state:'submitted' },
+  { id:'c4', requester:'김범준', requesterId:'u1', usedOn:'2026-08-12', merchant:'Zoom Video Communications',
+    purpose:'Zoom Pro 8월 구독 (Boarding 계정)', account:'지급수수료',
+    requested:21500, approved:21500, reason:'', receipt:true,  state:'approved' },
+];
+
+/* ── 공용: ExpectedAmountInput ────────────────────────────────
+   기대값 = placeholder / 실측값 = value / diff() 배지 / 사유 강제
+   입금·카드 두 화면이 이 함수 하나를 쓴다.                        */
+function expectedAmountInput({ expected, value, canEdit, onChange }) {
+  const el = document.createElement('input');
+  el.type = 'text';
+  const api = MONEY.bindInput(el, {
+    expected,
+    readonly: !canEdit,
+    onValue: n => { paint(n); onChange && onChange(n); },
+  });
+  api.set(value);
+
+  function paint(n) {
+    const d = MONEY.diff(expected, n);
+    el.classList.remove('short','over','match');
+    if (d.state !== 'empty') el.classList.add(d.state);
+  }
+  paint(value);
+  return { el, api };
+}
+
+function badgeFor(expected, actual) {
+  const d = MONEY.diff(expected, actual);
+  const b = document.createElement('span');
+  b.className = 'badge ' + d.tone;
+  b.textContent = d.label || '—';
+  return { node: b, d };
+}
+
+/* ── 화면 ① 입금 내역 ─────────────────────────────────────────── */
+function renderDeposits() {
+  const body = document.getElementById('depBody');
+  body.innerHTML = '';
+  const canEdit = ROLE === 'manager';
+
+  DEPOSITS.forEach(row => {
+    const tr = document.createElement('tr');
+
+    const c1 = document.createElement('td');
+    c1.innerHTML = `<div class="who">${row.label}</div><div class="meta">${row.who}</div>`;
+
+    const c2 = document.createElement('td');
+    c2.className = 'meta';
+    c2.textContent = row.billedOn.slice(5).replace('-', '/');
+
+    const c3 = document.createElement('td');
+    c3.className = 'num meta';
+    c3.textContent = MONEY.won(row.expected);
+
+    const c4 = document.createElement('td');
+    c4.className = 'num';
+
+    const c5 = document.createElement('td');
+    const c6 = document.createElement('td');
+
+    const reason = document.createElement('input');
+    reason.className = 'reason';
+    reason.placeholder = '차액 사유';
+    reason.value = row.reason;
+    reason.disabled = !canEdit;
+    reason.addEventListener('input', () => { row.reason = reason.value; syncRow(); });
+    c6.appendChild(reason);
+
+    const { el } = expectedAmountInput({
+      expected: row.expected, value: row.actual, canEdit,
+      onChange: n => { row.actual = n; syncRow(); syncTotals(); },
+    });
+    if (row.state === 'reconciled') { el.readOnly = true; el.classList.add('is-readonly'); reason.disabled = true; }
+    c4.appendChild(el);
+
+    function syncRow() {
+      c5.innerHTML = '';
+      if (row.state === 'reconciled') {
+        const b = document.createElement('span');
+        b.className = 'badge green'; b.textContent = '확정';
+        c5.appendChild(b); reason.classList.remove('need'); return;
+      }
+      const { node, d } = badgeFor(row.expected, row.actual);
+      c5.appendChild(node);
+      const needReason = (d.state === 'short' || d.state === 'over') && !row.reason.trim();
+      reason.classList.toggle('need', needReason);
+      reason.placeholder = needReason ? '사유를 적어야 저장됩니다' : '차액 사유';
+    }
+    syncRow();
+
+    tr.append(c1, c2, c3, c4, c5, c6);
+    body.appendChild(tr);
+  });
+  syncTotals();
+}
+
+function syncTotals() {
+  const exp = MONEY.sum(DEPOSITS, r => r.expected);
+  const act = MONEY.sum(DEPOSITS, r => r.actual);
+  const entered = DEPOSITS.filter(r => MONEY.parse(r.actual) !== null);
+  const delta = act - MONEY.sum(entered, r => r.expected);   // 입력된 건만 비교한다
+
+  document.getElementById('sExp').textContent = MONEY.won(exp);
+  document.getElementById('sAct').textContent = MONEY.won(act);
+
+  const dEl = document.getElementById('sDelta');
+  const st  = delta === 0 ? 'match' : delta > 0 ? 'over' : 'short';
+  dEl.className = 'vl ' + st;
+  dEl.textContent = delta === 0 ? MONEY.won(0) : MONEY.format(delta, { signed: true });
+
+  const done = DEPOSITS.filter(r => r.state === 'reconciled').length;
+  document.getElementById('sDone').textContent = `${done} / ${DEPOSITS.length}`;
+  document.getElementById('depN').textContent = DEPOSITS.length - done;
+
+  // 일괄 확정 — 미입력이 있거나 사유 없는 차액이 있으면 막는다
+  const blocked = DEPOSITS.some(r => {
+    if (r.state === 'reconciled') return false;
+    const d = MONEY.diff(r.expected, r.actual);
+    if (d.state === 'empty') return true;
+    return (d.state !== 'match') && !r.reason.trim();
+  });
+  const btn = document.getElementById('reconcileBtn');
+  btn.disabled = blocked || ROLE !== 'manager';
+  btn.textContent = blocked ? '미입력·사유 누락이 있습니다' : '일괄 확정';
+}
+
+/* ── 화면 ② 법인 카드 승인 ────────────────────────────────────── */
+let SEL = CARDS[0].id;
+
+function renderCards() {
+  const list = document.getElementById('reqList');
+  list.innerHTML = '';
+  CARDS.forEach(r => {
+    const d = document.createElement('div');
+    d.className = 'req';
+    d.setAttribute('aria-current', String(r.id === SEL));
+    const tone = r.state === 'approved' ? 'green' : r.state === 'rejected' ? 'red' : 'amber';
+    const lbl  = r.state === 'approved' ? '승인' : r.state === 'rejected' ? '반려' : '대기';
+    d.innerHTML = `<div><div class="who">${r.requester}</div>
+        <div class="meta">${r.usedOn.slice(5).replace('-','/')} · ${r.merchant}</div></div>
+      <span class="badge ${tone}">${lbl}</span>
+      <span class="amt">${MONEY.won(r.state === 'approved' ? r.approved : r.requested)}</span>`;
+    d.addEventListener('click', () => { SEL = r.id; renderCards(); });
+    list.appendChild(d);
+  });
+  document.getElementById('cardN').textContent = CARDS.filter(r => r.state === 'submitted').length;
+  document.getElementById('cardHint').textContent = `대기 ${CARDS.filter(r=>r.state==='submitted').length}건`;
+  renderCardDetail();
+}
+
+function renderCardDetail() {
+  const r = CARDS.find(x => x.id === SEL);
+  const box = document.getElementById('reqDetail');
+  box.innerHTML = '';
+
+  const h = document.createElement('div');
+  h.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:14px';
+  h.innerHTML = `<div><div style="font-size:17px;font-weight:800">${r.merchant}</div>
+    <div class="meta">${r.requester} 신청 · ${r.usedOn}</div></div>`;
+  box.appendChild(h);
+
+  const rows = [
+    ['사용 목적', r.purpose],
+    ['계정과목', r.account],
+    ['영수증', r.receipt
+        ? '<span class="receipt">📎 receipt_' + r.id + '.jpg</span>'
+        : '<span class="receipt none">영수증 없음 · 승인 불가</span>'],
+  ];
+  rows.forEach(([k, v]) => {
+    const el = document.createElement('div');
+    el.className = 'row';
+    el.innerHTML = `<div class="k">${k}</div><div class="v">${v}</div>`;
+    box.appendChild(el);
+  });
+
+  const done = r.state !== 'submitted';
+  const selfApproval = r.requesterId === ME.id;
+  const canApprove = ROLE === 'manager' && !done && !selfApproval;
+
+  const ap = document.createElement('div');
+  ap.className = 'approve';
+  ap.innerHTML = `<div class="lbl">승인 금액 <span style="font-weight:600;color:var(--fg-subtle)">
+      · 신청 금액 ${MONEY.won(r.requested)} 이 placeholder 로 들어갑니다</span></div>`;
+
+  const line = document.createElement('div');
+  line.className = 'line';
+
+  const { el } = expectedAmountInput({
+    expected: r.requested, value: r.approved, canEdit: canApprove,
+    onChange: n => { r.approved = n; sync(); },
+  });
+  line.appendChild(el);
+
+  const badgeSlot = document.createElement('span');
+  line.appendChild(badgeSlot);
+  ap.appendChild(line);
+
+  const reason = document.createElement('input');
+  reason.className = 'reason';
+  reason.style.marginTop = '10px';
+  reason.placeholder = '신청 금액과 다르면 사유가 필요합니다';
+  reason.value = r.reason;
+  reason.disabled = !canApprove;
+  reason.addEventListener('input', () => { r.reason = reason.value; sync(); });
+  ap.appendChild(reason);
+
+  const acts = document.createElement('div');
+  acts.className = 'acts';
+  const ok = document.createElement('button');   ok.className = 'btn primary'; ok.textContent = '승인';
+  const no = document.createElement('button');   no.className = 'btn danger';  no.textContent = '반려';
+  acts.append(ok, no); ap.appendChild(acts);
+
+  const why = document.createElement('div');
+  why.style.cssText = 'margin-top:10px;font-size:12.5px;color:var(--red);font-weight:700';
+  ap.appendChild(why);
+
+  function sync() {
+    badgeSlot.innerHTML = '';
+    const { node, d } = badgeFor(r.requested, r.approved);
+    if (d.state !== 'empty') badgeSlot.appendChild(node);
+
+    const needReason = (d.state === 'short' || d.state === 'over') && !r.reason.trim();
+    reason.classList.toggle('need', needReason);
+
+    const errs = [];
+    if (done)                      errs.push(r.state === 'approved' ? '이미 승인된 건입니다' : '반려된 건입니다');
+    if (selfApproval)              errs.push('본인이 올린 신청은 본인이 승인할 수 없습니다 (A-4)');
+    if (!r.receipt)                errs.push('영수증이 없으면 승인할 수 없습니다 (A-3)');
+    if (d.state === 'over')        errs.push('승인 금액이 신청 금액을 넘을 수 없습니다 (A-2)');
+    if (d.state === 'empty')       errs.push('승인 금액을 입력해 주세요');
+    if (needReason)                errs.push('감액 사유가 필요합니다 (A-1)');
+    if (ROLE !== 'manager')        errs.push('승인 권한이 없습니다');
+
+    why.textContent = errs[0] || '';
+    ok.disabled = errs.length > 0;
+    no.disabled = done || ROLE !== 'manager' || selfApproval;
+  }
+  sync();
+
+  ok.addEventListener('click', () => { r.state = 'approved'; renderCards(); });
+  no.addEventListener('click', () => {
+    if (!r.reason.trim()) { r.reason = ''; reason.classList.add('need'); reason.placeholder = '반려 사유는 필수입니다'; reason.focus(); return; }
+    r.state = 'rejected'; renderCards();
+  });
+
+  box.appendChild(ap);
+}
+
+/* ── 탭 · 역할 ────────────────────────────────────────────────── */
+document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', String(x === t)));
+  const k = t.dataset.tab;
+  document.getElementById('pane-dep').classList.toggle('hidden', k !== 'dep');
+  document.getElementById('pane-card').classList.toggle('hidden', k !== 'card');
+}));
+
+document.getElementById('roleBtn').addEventListener('click', e => {
+  ROLE = ROLE === 'manager' ? 'staff' : 'manager';
+  e.target.textContent = '역할: ' + (ROLE === 'manager' ? '매니저' : '직원');
+  renderDeposits(); renderCards();
+});
+
+document.getElementById('reconcileBtn').addEventListener('click', () => {
+  DEPOSITS.forEach(r => { if (MONEY.parse(r.actual) !== null) r.state = 'reconciled'; });
+  renderDeposits();
+});
+
+renderDeposits();
+renderCards();
+</script>
+</body>
+</html>

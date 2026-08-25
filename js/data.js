@@ -121,20 +121,33 @@ const S = (date, st, dur, subject, studentId, mode, report, extra = {}) => ({
   assess: extra.assess || null,        // 진단고사 결과
   lang: extra.lang || 'ko',            // 리포트 작성 언어 ko | en
   note: extra.note || null,
+  /* ── 출결 축 (A27) — 리포트 축과 서로를 보지 않는다 ──
+     status        scheduled | completed | canceled   현재값
+     att           {by,at,result}  강사 1차 체크. 한 번 쓰이면 안 바뀐다
+     statusChanged {by,at}         그 뒤의 변경. 매니저 이상만
+     매니저가 대신 확정하면 att 는 비어 있다 — "강사 확인 없음"을 셀 수 있어야 한다 */
+  status: extra.status || 'scheduled',
+  att: extra.att || null,
+  statusChanged: extra.statusChanged || null,
 });
+/** 강사가 그 자리에서 찍은 1차 체크 픽스처 — 대부분의 지난 수업은 이 상태다 */
+const chk = (date, at, result = 'completed') =>
+  ({ status: result, att: { by: '김범준', at: `${date} ${at}`, result } });
 
 const SESS = [
   /* 지난 주 — 전부 승인 완료 */
-  S('2026-08-11', '17:00', 120, 'SAT Reading & Writing', 1, '대면', 'approved', { submittedAt: '2026-08-11 19:20' }),
-  S('2026-08-12', '16:00', 120, 'AP World History', 2, '대면', 'approved', { submittedAt: '2026-08-12 18:25' }),
-  S('2026-08-13', '18:00', 120, 'ELA Intermediate', 3, '비대면', 'approved', { submittedAt: '2026-08-13 20:40' }),
-  S('2026-08-14', '15:00', 120, 'MAP Reading G8', 4, '비대면', 'approved', { submittedAt: '2026-08-14 21:10' }),
+  S('2026-08-11', '17:00', 120, 'SAT Reading & Writing', 1, '대면', 'approved', { submittedAt: '2026-08-11 19:20', ...chk('2026-08-11', '19:05') }),
+  S('2026-08-12', '16:00', 120, 'AP World History', 2, '대면', 'approved', { submittedAt: '2026-08-12 18:25', ...chk('2026-08-12', '18:10') }),
+  S('2026-08-13', '18:00', 120, 'ELA Intermediate', 3, '비대면', 'approved', { submittedAt: '2026-08-13 20:40', ...chk('2026-08-13', '20:05') }),
+  S('2026-08-14', '15:00', 120, 'MAP Reading G8', 4, '비대면', 'approved', { submittedAt: '2026-08-14 21:10',
+    /* 강사가 안 찍어서 매니저가 대신 확정한 회차 — att 는 비어 있다 (A27) */
+    status: 'completed', statusChanged: { by: '박지현 매니저', at: '2026-08-17 09:40' } }),
   /* 이번 주 */
-  S('2026-08-17', '19:00', 90, 'Pre-Algebra', 4, '비대면', 'none'),                                   // 미작성
-  S('2026-08-18', '17:00', 120, 'SAT Reading & Writing', 1, '대면', 'approved', { submittedAt: '2026-08-18 20:15' }),
-  S('2026-08-19', '16:00', 120, 'AP World History', 2, '대면', 'none'),                                // 미작성
-  S('2026-08-19', '19:00', 90, 'Pre-Algebra', 4, '비대면', 'approved', { submittedAt: '2026-08-19 21:20' }),
-  S('2026-08-20', '18:00', 120, 'ELA Intermediate', 3, '비대면', 'submitted', { submittedAt: '2026-08-20 20:35' }),
+  S('2026-08-17', '19:00', 90, 'Pre-Algebra', 4, '비대면', 'none', chk('2026-08-17', '20:35')),        // 출결 O · 리포트 X
+  S('2026-08-18', '17:00', 120, 'SAT Reading & Writing', 1, '대면', 'approved', { submittedAt: '2026-08-18 20:15', ...chk('2026-08-18', '19:05') }),
+  S('2026-08-19', '16:00', 120, 'AP World History', 2, '대면', 'none'),                                // 출결 X · 리포트 X — 1차 체크 가능
+  S('2026-08-19', '19:00', 90, 'Pre-Algebra', 4, '비대면', 'approved', { submittedAt: '2026-08-19 21:20', ...chk('2026-08-19', '20:35') }),
+  S('2026-08-20', '18:00', 120, 'ELA Intermediate', 3, '비대면', 'submitted', { submittedAt: '2026-08-20 20:35', ...chk('2026-08-20', '20:05') }),
   S('2026-08-21', '15:00', 120, 'MAP Reading G8', 4, '비대면', 'none'),                                // 지금 진행 중
   S('2026-08-21', '19:00', 120, 'AP World History', 2, '대면', 'none'),                                // 예정
   S('2026-08-22', '17:00', 120, 'SAT Reading & Writing', 1, '대면', 'none', {
@@ -149,8 +162,8 @@ const SESS = [
   S('2026-09-02', '16:00', 120, 'AP World History', 2, '대면', 'none'),
   /* 유형이 다른 수업 — 네모/마름모와 단가 차이를 보여 준다 (v20 s38·s46) */
   S('2026-08-18', '10:00', 60,  'Kinder Phonics A',    5, '대면', 'approved',
-    { kind: 'kinder', submittedAt: '2026-08-18 11:20' }),
-  S('2026-08-20', '14:00', 60,  '진단고사 · Math G8',   4, '대면', 'none',   { kind: 'assess' }),
+    { kind: 'kinder', submittedAt: '2026-08-18 11:20', ...chk('2026-08-18', '11:05') }),
+  S('2026-08-20', '14:00', 60,  '진단고사 · Math G8',   4, '대면', 'none',   { kind: 'assess' }),   // 출결 X
   S('2026-08-21', '11:00', 60,  '모의수업 · Kinder 상담', 6, '비대면', 'none', { kind: 'trial' }),
   S('2026-08-26', '10:00', 90,  'ELA Group Reading',   3, '대면', 'none',   { groupSize: 3 }),
 ];
@@ -166,7 +179,9 @@ const SESS = [
     const p = plan[wdOf(d)]; if (!p) continue;
     const over = late[d] || 0.5;
     const at = fromMin(toMin(p[0]) + p[1] + Math.round(over * 60));
-    SESS.push(S(d, p[0], p[1], p[2], p[3], p[4], 'approved', { submittedAt: `${d} ${at}` }));
+    /* 지급이 끝난 달이므로 출결은 전부 확정돼 있다 (A10 — 확정 안 된 회차는 지급되지 않는다) */
+    SESS.push(S(d, p[0], p[1], p[2], p[3], p[4], 'approved',
+      { submittedAt: `${d} ${at}`, ...chk(d, fromMin(toMin(p[0]) + p[1] + 10)) }));
   }
 })();
 const sess = id => SESS.find(s => s.id === id);
