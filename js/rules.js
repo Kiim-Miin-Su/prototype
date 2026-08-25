@@ -1,6 +1,14 @@
 /* ══════════════════════════════════════════════════════════════
    도메인 규칙 — 화면은 이 파일을 읽기만 하고 다시 계산하지 않는다.
-   NEW.md A19(표기 권한) · A20(지각 차감) · A21(조회 범위)의 구현부.
+   정본: docs/V26-SPEC.md  (v26 · 2026-08-25)
+
+   v20 → v26 로 바뀐 것
+     · 정산에 들어가는 조건  출결 확정 → **리포트 승인(approved)**  ← countsForSettlement()
+     · 차감 시계             시간 단위 누진 → **수업일 + 10일 단일 기한**  ← isOverdue()
+     · 원천징수              3.3% 일괄 → **소득세 3% + 지방소득세 0.3% 분리**  ← withholding()
+     · 시급                  고정 → **이력(effective_from). 변경은 이후 수업부터**  ← rateAt()
+     · 캘린더 색             진행 상태 → **리포트 상태**  ← blockState()
+     · 자원 충돌             흩어짐 → **guard.js 한 함수**  ← GUARD.guardResource()
    ══════════════════════════════════════════════════════════════ */
 'use strict';
 
@@ -23,13 +31,35 @@ const reportForm = s => kindOf(s).form;              // regular | dev | assess
    진단·모의 = 건당 15,000원 (시수에는 포함, 시간 비례 아님)                */
 function sessionPay(s) {
   const k = kindOf(s).key, hours = s.dur / 60;
-  if (k === 'assess' || k === 'trial') return { amount: RATE_RULE.assessFlat, hours, basis: '건당 15,000원' };
-  let hourly = ME.rate;
+  if (k === 'assess' || k === 'trial')
+    return { amount: RATE_RULE.assessFlat, hours, hourly: null, basis: '건당 15,000원 · 시수 집계엔 포함' };
+  let hourly = rateAt(s.date);                       // 수업일 기준 (D8)
   if (k === 'kinder') hourly += RATE_RULE.kinderBonus;
   if (s.groupSize > 1) hourly += RATE_RULE.groupPerStudent * (s.groupSize - 1);
-  return { amount: Math.round(hours * hourly), hours,
+  return { amount: Math.round(hours * hourly), hours, hourly,
     basis: `${won(hourly)} × ${hours}시간${k === 'kinder' ? ' (Kinder +10,000)' : ''}${s.groupSize > 1 ? ` (그룹 ${s.groupSize}명)` : ''}` };
 }
+/* ── 시급 이력 (V26 §4.1.1 · D8 확정) ──────────────────────────────
+   시급 변경은 변경 즉시, **그 이후 수업부터** 적용한다. 소급하지 않는다.
+   기준은 수업일이지 정산월이 아니다 — 월중에 바뀌면 그 달 안에서 두 단가가 섞인다. */
+const RATE_HISTORY = (typeof ME !== 'undefined' && ME.rateHistory)
+  ? ME.rateHistory
+  : [{ from: '2000-01-01', rate: (typeof ME !== 'undefined' ? ME.rate : 45000) }];
+function rateAt(date) {
+  let hit = RATE_HISTORY[0];
+  for (const r of RATE_HISTORY) if (r.from <= date) hit = r;
+  return hit.rate;
+}
+
+/* ── 원천징수 (V26 §4.3 · D-15 확정) ───────────────────────────────
+   3.3% 를 한 번에 곱하지 않는다. 신고가 소득세와 지방소득세 두 항목으로
+   나뉘므로 계산도 나뉘고, 각각 원 단위로 절사한다.                        */
+function withholding(base) {
+  const income = Math.floor(base * 0.03 / 10) * 10;
+  const local  = Math.floor(income * 0.10 / 10) * 10;
+  return { income, local, total: income + local };
+}
+
 /** 희망 시급을 넣었을 때 나머지 단가가 얼마가 되는지 즉시 환산 (v20 s39) */
 const rateTable = base => ({
   base, kinder: base + RATE_RULE.kinderBonus,
@@ -38,72 +68,84 @@ const rateTable = base => ({
 });
 
 /* 상자 색 규칙 — 캘린더·아젠다·리스트가 모두 이 한 함수를 쓴다 */
+/* 색 채널 = **리포트 상태**. 모양(종류)·테두리(대면/비대면)와 섞지 않는다. (V26 §2.3)
+   한 채널에 두 뜻을 실으면 읽을 수 없게 된다.                                      */
 function blockState(s) {
   if (isCanceled(s)) return 'cancel';
+  if (s.report === 'rejected') return 'rej';
   if (s.report === 'approved') return 'done';
   if (s.report === 'submitted') return 'pend';
   if (isPast(s)) return 'miss';
   return 'sched';
 }
-const STATE_LABEL = { miss: '리포트 미작성', sched: '수업 예정', done: '리포트 완료',
-                      pend: '승인 대기', cancel: '취소 · 시수 제외' };
-const STATE_CHIP  = { miss: 'red', sched: 'blue', done: 'green', pend: 'amber', cancel: 'gray' };
+const STATE_LABEL = { miss: '리포트 미작성', sched: '수업 예정', done: '리포트 작성 완료',
+                      pend: '승인 대기', rej: '반려됨', cancel: '취소된 수업' };
+const STATE_CHIP  = { miss: 'red', sched: 'blue', done: 'green', pend: 'amber', rej: 'red', cancel: 'gray' };
 const STATE_RAIL  = { miss: 'var(--red)', sched: 'var(--blue)', done: 'var(--green)',
-                      pend: 'var(--amber)', cancel: '#cbd5e1' };
+                      pend: 'var(--amber)', rej: 'var(--kind-kinder)', cancel: '#cbd5e1' };
+
+/* ── 불변식 I-2 · 정산에 들어가는 조건은 이것 하나다 ──────────────────
+   화면 코드에서 s.report === 'approved' 를 직접 비교하지 않는다.
+   v20→v26 에서 이 조건이 이미 한 번 바뀌었고(출결 확정 → 리포트 승인),
+   다음에 또 바뀔 때 고칠 곳이 한 줄이어야 한다. (ARCHITECTURE.md R-4) */
+const countsForSettlement = s => !isCanceled(s) && s.report === 'approved';
+
+/* ── 10일 기한 (V26 §3.3) ─────────────────────────────────────────
+   차단이 아니라 경고다. 늦어도 쓸 수 있고, 다만 그 달 정산에서 빠진다. */
+const REPORT_DEADLINE_DAYS = 10;
+const deadlineOf = s => addDays(s.date, REPORT_DEADLINE_DAYS);
+const daysLeft   = s => diffDays(TODAY, deadlineOf(s));
+const isOverdue  = s => !isCanceled(s) && isPast(s) && daysLeft(s) < 0;
 
 const missingReports  = () => SESS.filter(s => !isCanceled(s) && isPast(s) && (s.report === 'none' || s.report === 'draft'));
 const pendingReports  = () => SESS.filter(s => s.report === 'submitted');
 
-/* ── A20 · 리포트 지각 차감 ────────────────────────────────
-   기준은 회차 종료 시각. 1시간 이내 0원 / 1시간 초과 −5,000 / 4시간 초과 −10,000.
-   차감이 붙어도 작성 의무는 사라지지 않는다.                                   */
-const PENALTY_RULE = [
-  { when: '수업 종료 후 1시간 이내', short: '1시간 이내', amount: 0,     tone: 'ok',   say: '차감 없음' },
-  { when: '1시간이 지나면',          short: '1시간↑',    amount: 5000,  tone: 'warn', say: '− 5,000원' },
-  { when: '4시간이 지나면',          short: '4시간↑',    amount: 10000, tone: 'bad',  say: '− 10,000원' },
+/* ── 리포트 지각 제출 차감 (V26 §4.2) ─────────────────────────────
+   기준 시각은 **수업일 + N일**. v20 의 연강 시계(chainOf / penaltyDeadlineBase)는 폐기했다.
+
+   ⚠️ 구간 금액은 **잠정**이다 — 결정 안건 D-13 (P0, PLANNING-REQUIRED.md).
+      권고안 ①(일수 구간별 정액)을 임시로 넣어 두었고, 확정되면 이 표 하나만 바꾼다.  */
+const LATE_REPORT_TIERS_PROVISIONAL = [
+  { afterDays: 0,  amount: 0,     short: '3일 이내',  say: '차감 없음',      tone: 'ok'   },
+  { afterDays: 3,  amount: 5000,  short: '3일 초과',  say: '− 5,000원',      tone: 'warn' },
+  { afterDays: 7,  amount: 10000, short: '7일 초과',  say: '− 10,000원',     tone: 'bad'  },
+  { afterDays: 10, amount: null,  short: '10일 초과', say: '정산에서 제외',  tone: 'bad'  },
 ];
-/** 연강 블록 — 쉬는 시간 없이 이어지는 수업 묶음 (v20 s40).
-    연강 중에는 리포트를 쓸 수 없으므로 마지막 수업이 끝난 시각부터 센다.
-    그리고 블록 안 순번만큼 1시간씩 더 준다. */
-function chainOf(s) {
-  const sameDay = SESS.filter(x => x.date === s.date && !isCanceled(x))
-    .sort((a, b) => toMin(a.start) - toMin(b.start));
-  const block = []; let cur = null;
-  for (const x of sameDay) {
-    if (cur && toMin(x.start) === endMin(cur)) block.push(x);
-    else { if (block.some(b => b.id === s.id)) break; block.length = 0; block.push(x); }
-    cur = x;
-    if (block.some(b => b.id === s.id) && (sameDay.indexOf(x) === sameDay.length - 1
-      || toMin(sameDay[sameDay.indexOf(x) + 1].start) !== endMin(x))) break;
-  }
-  const idx = block.findIndex(b => b.id === s.id);
-  return idx < 0 ? { size: 1, index: 1, blockEnd: endMin(s) }
-    : { size: block.length, index: idx + 1, blockEnd: endMin(block[block.length - 1]) };
+const PENALTY_RULE = LATE_REPORT_TIERS_PROVISIONAL.map(t => ({
+  when: t.short, short: t.short, amount: t.amount || 0, tone: t.tone, say: t.say,
+}));
+
+/** 수업일로부터 며칠 지났을 때 얼마인가 */
+function tierFor(daysAfter) {
+  let hit = LATE_REPORT_TIERS_PROVISIONAL[0];
+  for (const t of LATE_REPORT_TIERS_PROVISIONAL) if (daysAfter > t.afterDays) hit = t;
+  return hit;
 }
-/** 이 회차의 차감 기준 시각 — 연강이면 블록 종료 + 순번 시간 */
-function penaltyDeadlineBase(s) {
-  const c = chainOf(s);
-  return { chain: c, baseMin: c.blockEnd + (c.size > 1 ? c.index * 60 : 0) };
-}
+/** 제출이 끝난 회차의 확정 차감액 */
 function latePenalty(s) {
   if (isCanceled(s) || !s.submittedAt) return 0;
-  const { baseMin } = penaltyDeadlineBase(s);
-  const base = new Date(`${s.date}T${fromMin(Math.min(baseMin, 23 * 60 + 59))}:00+09:00`);
-  const h = (new Date(s.submittedAt.replace(' ', 'T') + ':00+09:00') - base) / 3600000;
-  if (h <= 1) return 0;
-  if (h < 4) return 5000;
-  return 10000;
+  const submitted = String(s.submittedAt).slice(0, 10);
+  return tierFor(diffDays(s.date, submitted)).amount || 0;
 }
-const nowTs = () => new Date(`${TODAY}T${fromMin(NOW_MIN)}:00+09:00`);
 /** 지금 제출하면 얼마가 깎이는지 — 리포트 화면이 실시간으로 읽는다 */
 function penaltyNow(s) {
-  const { baseMin } = penaltyDeadlineBase(s);
-  const h = (nowTs() - new Date(`${s.date}T${fromMin(Math.min(baseMin, 23 * 60 + 59))}:00+09:00`)) / 3600000;
-  if (h <= 0) return { amount: 0,     head: '수업이 끝난 뒤 1시간 안에 쓰면 차감이 없습니다', left: null, next: 5000 };
-  if (h < 1)  return { amount: 0,     head: '지금 제출하면 차감이 없습니다',                 left: Math.round((1 - h) * 60), next: 5000 };
-  if (h < 4)  return { amount: 5000,  head: '지금 제출하면 5,000원이 깎입니다',              left: Math.round((4 - h) * 60), next: 10000 };
-  return        { amount: 10000, head: '지금 제출하면 10,000원이 깎입니다',             left: null, next: null };
+  const after = diffDays(s.date, TODAY);
+  const left = daysLeft(s);
+  const t = tierFor(after);
+  if (left < 0) return { amount: 0, over: true, left,
+    head: `수업일로부터 ${after}일이 지나 이번 달 정산에서 빠집니다`, next: null };
+  const nextTier = LATE_REPORT_TIERS_PROVISIONAL.find(x => x.afterDays > after);
+  return {
+    amount: t.amount || 0, over: false, left,
+    head: (t.amount ? `지금 제출하면 ${won(t.amount)}이 깎입니다` : '지금 제출하면 차감이 없습니다')
+          + ` · 기한까지 ${left}일`,
+    next: nextTier ? nextTier.amount : null,
+    nextIn: nextTier ? nextTier.afterDays - after : null,
+  };
 }
+/* v20 연강 개념은 v26 에 없다. 남아 있는 호출부를 위해 최소 형태만 남긴다. */
+function chainOf(s) { return { size: 1, index: 1, blockEnd: endMin(s) }; }
+function penaltyDeadlineBase(s) { return { chain: chainOf(s), baseMin: endMin(s) }; }
 
 /* ── A19 · 표기 권한 ──────────────────────────────────────
    강사는 가능(대면/비대면)·불가만 남긴다. 확정된 회차와 겹치는 불가 표기는 거절한다. */
@@ -144,7 +186,65 @@ function changeConflicts(s, c) {
   return out;
 }
 
-/* ── 리포트 내용 검증 — 60자 + 세 가지 + 교재 정식 명칭 ── */
+/* ── 리포트 검증 (V26 §3 · 검증 1·2·10·11) ────────────────────────
+   최소 글자 수는 REPORT_MINIMA 한 곳에만 산다. 화면이 숫자를 다시 적지 않는다.
+   제출(submit)에서만 강제하고, 임시 저장(draft)은 몇 자든 통과한다.              */
+const reportFormOf = s => (KIND[s.kind] || KIND.regular).form;
+const reportMeta   = s => REPORT_FORM[reportFormOf(s)] || REPORT_FORM.normal;
+
+function validateReport(form, draft) {
+  const errs = [];
+  const need = (field, min, code) => {
+    const v = String((draft && draft[field]) || '').trim();
+    if (v.length < min) errs.push({ field, code, min, actual: v.length });
+  };
+  need('did',        REPORT_MINIMA.did,        'REPORT_TOO_SHORT');
+  need('leftUndone', REPORT_MINIMA.leftUndone, 'REPORT_LEFT_UNDONE_REQUIRED');
+  need('nextPlan',   REPORT_MINIMA.nextPlan,   'REPORT_TOO_SHORT');
+
+  if (form === 'group') {
+    if (String(draft.did || '').trim().length < REPORT_MINIMA_EXTRA.groupCommon)
+      errs.push({ field: 'did', code: 'GROUP_COMMON_TOO_SHORT', min: REPORT_MINIMA_EXTRA.groupCommon,
+                  actual: String(draft.did || '').trim().length });
+    (draft.perStudent || []).forEach(p => {
+      const n = String(p.comment || '').trim().length;
+      if (n < REPORT_MINIMA_EXTRA.groupPerStudent)
+        errs.push({ field: 'perStudent:' + p.studentId, code: 'GROUP_PER_STUDENT_TOO_SHORT',
+                    min: REPORT_MINIMA_EXTRA.groupPerStudent, actual: n });
+    });
+  }
+  if (form === 'kinder') {
+    (draft.sections || []).forEach(sec => {
+      if (!sec.level) errs.push({ field: 'level:' + sec.area, code: 'REPORT_TOO_SHORT', min: 1, actual: 0 });
+      const n = String(sec.comment || '').trim().length;
+      if (n < REPORT_MINIMA_EXTRA.kinderSection)
+        errs.push({ field: 'sec:' + sec.area, code: 'REPORT_TOO_SHORT',
+                    min: REPORT_MINIMA_EXTRA.kinderSection, actual: n });
+    });
+  }
+  return errs;
+}
+const canSubmitReport = (form, draft) => validateReport(form, draft).length === 0;
+
+/* 글자 수 카운터 한 줄 — 화면은 이것만 그린다 */
+const counterOf = (text, min) => {
+  const n = String(text || '').trim().length;
+  return { n, min, ok: n >= min, label: `${n} / ${min}자` };
+};
+
+/* ── 건의 사항 (V26 §2.8 · D-11 · D-12 확정) ────────────────────── */
+const SUGGESTION_CATS = [
+  { key: 'lesson',   label: '수업 관련',   sub: '교재 · 진행 · 학생' },
+  { key: 'pay',      label: '시급 관련',   sub: '정산 · 보강' },
+  { key: 'schedule', label: '스케줄 관련', sub: '시간 · 요일 · 이동' },
+  { key: 'etc',      label: '기타',        sub: '그 밖의 이야기' },
+];
+const SUGGESTION_STATES = { open: '접수됨', reviewing: '확인 중', done: '답변 완료' };
+const SUGGESTION_QUOTA = 3;
+const suggestionQuotaLeft = (items, ym) =>
+  SUGGESTION_QUOTA - (items || []).filter(x => String(x.at || '').startsWith(ym)).length;
+
+/* ── 리포트 내용 검증 — 60자 + 세 가지 + 교재 정식 명칭 (v20 잔재 · 표시용) ── */
 const ABBR = [/\bSAT\s?RW\b/i, /\bAP\s?World\b(?!\s?History)/i, /\bMAP\s?G8\b/i, /\bVocab\b(?!ulary)/i, /\bELA\s?Int\b/i];
 const hasAbbr = t => ABBR.some(r => r.test(t || ''));
 function contentChecks(t) {
@@ -158,33 +258,63 @@ function contentChecks(t) {
 /* ── A21 · 조회 범위 ──────────────────────────────────────
    강사는 직전 급여 1건 + 그 급여의 회차, 그리고 진행 중인 당월까지만 본다.
    그 이전은 삭제하지 않고 보관하되 강사 응답에서 제외한다.                    */
+/* V26 §4.4 — 정산은 본인만 본다 (I-6). 기간 제한은 v20 A21 의 잔재라 유지만 한다. */
 const canSeePeriod = p => p === LAST_PAYOUT.period || p === OPEN_PERIOD;
+
+/* ── 정산 (V26 §4) ────────────────────────────────────────────────
+   불변식 I-2 · 승인된 리포트(approved)만 들어간다. 미작성·draft·대기·반려는 제외.
+   불변식 I-8 · 단가는 수업일 기준 시급 스냅샷. 이력이 정정돼도 지난 정산은 안 흔들린다.
+   D-15      · 원천징수는 소득세·지방소득세를 따로 계산해 각각 절사한다.              */
 function settle(period) {
   const list = SESS.filter(s => s.date.startsWith(period))
     .sort((a, b) => b.date.localeCompare(a.date) || b.start.localeCompare(a.start));
-  /* 출결 축(A10 · A27) — 확정되지 않은 회차는 시수·페이에 아직 잡히지 않는다.
-     리포트 축과 별개다: 리포트를 다 써도 출결이 안 찍히면 정산에 안 들어가고,
-     출결을 찍어도 리포트를 안 쓰면 차감이 붙을 뿐 시수는 잡힌다.               */
+
   const past = list.filter(s => !isCanceled(s) && isPast(s));
-  const attPend = past.filter(s => attendanceState(s) === 'pending');
-  const held = past.filter(attCounts);
-  const done = held.filter(s => s.report === 'approved' || s.report === 'submitted');
-  const miss = held.filter(s => s.report === 'none' || s.report === 'draft');
+  const done = past.filter(countsForSettlement);                  // ← 유일한 판정
+  const miss = past.filter(s => !countsForSettlement(s));         // 미작성 · draft · 대기 · 반려
+  const wait = past.filter(s => s.report === 'submitted');
+  const rej  = past.filter(s => s.report === 'rejected');
+  const over = past.filter(s => !countsForSettlement(s) && isOverdue(s));   // 승인된 건은 이미 들어갔다
+
   const doneH = done.reduce((a, s) => a + s.dur, 0) / 60;
   const missH = miss.reduce((a, s) => a + s.dur, 0) / 60;
-  const gross = done.reduce((a, s) => a + sessionPay(s).amount, 0);   // 유형별 단가 (v20 s38)
+
+  const gross = done.reduce((a, s) => a + sessionPay(s).amount, 0);
   const byKind = {};
-  for (const s of done) { const k = kindOf(s).label;
-    byKind[k] = byKind[k] || { cnt: 0, hours: 0, amount: 0 };
-    byKind[k].cnt++; byKind[k].hours += s.dur / 60; byKind[k].amount += sessionPay(s).amount; }
-  const pen = done.reduce((a, s) => a + latePenalty(s), 0);
+  for (const s of done) {
+    const k = kindOf(s).label;
+    byKind[k] = byKind[k] || { cnt: 0, hours: 0, amount: 0, hourly: null };
+    byKind[k].cnt++; byKind[k].hours += s.dur / 60;
+    byKind[k].amount += sessionPay(s).amount;
+    byKind[k].hourly = byKind[k].hourly || sessionPay(s).hourly;
+  }
+
+  const pen    = done.reduce((a, s) => a + latePenalty(s), 0);
   const penCnt = done.filter(s => latePenalty(s) > 0).length;
-  const tax = Math.round((gross - pen) * 0.033);
+  const lateMin = done.reduce((a, s) => a + (s.lateMin || 0), 0);   // 수업 지각 (late_record)
+  const lateCut = lateMin ? Math.round(lateMin / 60 * rateAt(period + '-01')) : 0;
+
+  const afterCut = gross - pen - lateCut;
+  const tax = withholding(afterCut);
+
+  const missAmount = miss.reduce((a, s) => a + sessionPay(s).amount, 0);
   const future = list.filter(s => !isCanceled(s) && !isPast(s));
-  const attPendH = attPend.reduce((a, s) => a + s.dur, 0) / 60;
-  return { period, list, past, attPend, attPendH, held, done, miss, doneH, missH,
-    gross, byKind, pen, penCnt, tax, net: gross - pen - tax, future };
+  const futureAmount = future.reduce((a, s) => a + sessionPay(s).amount, 0);
+  const futureH = future.reduce((a, s) => a + s.dur, 0) / 60;
+
+  return {
+    period, list, past, done, miss, wait, rej, over,
+    doneH, missH, missAmount,
+    gross, byKind,
+    pen, penCnt, lateMin, lateCut, afterCut,
+    tax: tax.total, incomeTax: tax.income, localTax: tax.local,
+    net: afterCut - tax.total,
+    future, futureH, futureAmount,
+    /* 하위 호환 — 예전 화면이 읽던 이름 */
+    held: done, attPend: [], attPendH: 0,
+  };
 }
+
 
 /* ══ AI 프롬프트 (v20 s24·s29) ══════════════════════════════
    양식(일반·발달·진단)과 언어(ko·en)에 따라 라벨과 작성 규칙이 통째로 바뀐다.

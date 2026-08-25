@@ -203,7 +203,7 @@ function agendaView(wk, day, list) {
   </div>`;
 }
 
-/* ══ 가능·불가 표기 ══════════════════════════════════════════
+/* ══ 불가 시간 ══════════════════════════════════════════
    ① 강사가 남길 수 있는 것은 표기뿐. 확정 수업 위에는 불가를 찍을 수 없다. */
 VIEWS.marks = function () {
   const days = Array.from({ length: 14 }, (_, i) => addDays(UI.markStart, i));

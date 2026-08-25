@@ -117,15 +117,15 @@ VIEWS.history = function () {
   </div>
 
   <div class="grid4">
-    <div class="stat"><i>출결 확정</i><b class="num">${r.held.length}건</b>
-      <span>시수 ${r.held.reduce((a, s) => a + s.dur, 0) / 60}시간${
-        r.attPend.length ? ` · 미체크 ${r.attPend.length}건 제외` : ''}</span></div>
-    <div class="stat green"><i>리포트 완료</i><b class="num">${r.done.length}건</b>
+    <div class="stat"><i>진행 수업</i><b class="num">${r.past.length}건</b>
+      <span>시수 ${(r.past.reduce((a, s) => a + s.dur, 0) / 60)}시간 · 모의 · 진단 포함</span></div>
+    <div class="stat green"><i>리포트 승인 완료</i><b class="num">${r.done.length}건</b>
       <span>시수 ${r.doneH}시간 · 정산 확정</span></div>
-    <div class="stat red"><i>리포트 미작성</i><b class="num">${r.miss.length}건</b>
-      <span>시수 ${r.missH}시간 · 정산 보류</span></div>
-    <div class="stat blue"><i>내 시급 <span class="chip gray">관리자 설정</span></i>
-      <b class="num">${won(ME.rate)}</b><span>${ME.rateFrom} 적용</span></div>
+    <div class="stat red"><i>정산 보류</i><b class="num">${r.miss.length}건</b>
+      <span>시수 ${r.missH}시간${r.wait.length ? ` · 승인 대기 ${r.wait.length}` : ''}${
+        r.rej.length ? ` · 반려 ${r.rej.length}` : ''}</span></div>
+    <div class="stat blue"><i>내 기본 시급 <span class="chip gray">관리자 설정</span></i>
+      <b class="num">${won(ME.rate)}</b><span>${ME.rateFrom} 적용 · 이후 수업부터</span></div>
   </div>
 
   <div class="cols side-left">
@@ -139,27 +139,33 @@ VIEWS.history = function () {
         ${Object.entries(r.byKind).map(([k, v]) => `<div class="l">
           <span>${k} ${v.cnt}건 · ${v.hours}시간</span><b>${won(v.amount)}</b></div>`).join('')
           || `<div class="l"><span>리포트 완료 시수 ${r.doneH}시간</span><b>${won(r.gross)}</b></div>`}
-        <div class="l"><span>리포트 지각 제출 차감 ${r.penCnt}건</span><b style="color:#fca5a5">− ${won(r.pen)}</b></div>
-        <div class="l"><span>원천징수 3.3%</span><b style="color:#fca5a5">− ${won(r.tax)}</b></div>
+        ${r.pen ? `<div class="l"><span>리포트 지각 제출 차감 ${r.penCnt}건</span>
+          <b style="color:#fca5a5">− ${won(r.pen)}</b></div>` : ''}
+        ${r.lateCut ? `<div class="l"><span>수업 지각 차감 ${r.lateMin}분</span>
+          <b style="color:#fca5a5">− ${won(r.lateCut)}</b></div>` : ''}
+        <div class="l"><span>소득세 3%</span><b style="color:#fca5a5">− ${won(r.incomeTax)}</b></div>
+        <div class="l"><span>지방소득세 <span style="color:#64748b">소득세의 10%</span></span>
+          <b style="color:#fca5a5">− ${won(r.localTax)}</b></div>
         <div class="tot"><span>${tab === 'last' ? '실지급액' : '실지급 예정액'}</span><b class="num">${won(r.net)}</b></div>
-        ${r.missH ? `<div class="warn"><span>⚠ 리포트 미작성 ${r.missH}시간은 아직 빠져 있습니다</span>
-          <b>${won(r.missH * ME.rate)}</b></div>` : ''}
-        ${/* A27 — 출결을 안 찍으면 리포트와 무관하게 정산에 들어가지 않는다 */
-          r.attPend.length ? `<div class="warn"><span>◷ 출결 미체크 ${r.attPendH}시간은 아직 계산에 없습니다</span>
-          <b>${won(r.attPendH * ME.rate)}</b></div>` : ''}
+        ${r.missH ? `<div class="warn"><span>⚠ 리포트가 승인되지 않은 수업 ${r.miss.length}건 · ${r.missH}시간은 아직 빠져 있습니다</span>
+          <b>${won(r.missAmount)}</b></div>` : ''}
+        ${r.over.length ? `<div class="warn"><span>⏱ 10일이 지난 수업 ${r.over.length}건은 이번 달 정산에서 제외됩니다</span>
+          <b>${won(r.over.reduce((a, s) => a + sessionPay(s).amount, 0))}</b></div>` : ''}
         <div class="note" style="color:#64748b;margin-top:9px">
           ${tab === 'last' ? `이 급여에 포함된 수업 ${r.held.length}건만 아래에 표시됩니다.`
-            : `이 달 남은 예정 수업 ${r.future.length}건 · ${r.future.reduce((a, s) => a + s.dur, 0) / 60}시간`}</div>
+            : `이 달 남은 예정 수업 ${r.future.length}건 · ${r.futureH}시간 (예상 ${won(r.futureAmount)})`}</div>
+        <div class="note" style="color:#64748b;margin-top:4px">승인된 리포트만 정산에 들어갑니다 — 미작성 · 승인 대기 · 반려는 제외됩니다.</div>
       </div>
       ${rateSystemCard()}
       <div class="card pad" style="background:var(--amber-soft);border-color:var(--amber-line)">
-        <b style="font-size:12.5px">리포트 지각 차감 · 연강 기준</b>
+        <b style="font-size:12.5px">리포트 지각 차감 · 수업일 기준 <span class="chip amber">잠정</span></b>
         ${PENALTY_RULE.map(x => `<div class="row nowrap" style="margin-top:7px">
           <span class="sp" style="font-size:12px">${x.when}</span>
           <span class="chip ${x.tone === 'ok' ? 'green' : x.tone === 'warn' ? 'amber' : 'red'}">${x.say}</span></div>`).join('')}
         <div class="note" style="color:var(--amber);margin-top:9px">
-          수업이 끝난 시각부터 셉니다. 연강 중에는 리포트를 쓸 수 없으니 <b>마지막 수업이 끝난 시각</b>이 기준이고,
-          연강 수업 수만큼 1시간씩 더 드립니다. 2연강이면 첫 수업은 블록 종료 +1시간, 둘째 수업은 +2시간입니다.</div>
+          <b>수업일</b>부터 셉니다. 열흘 안에 쓰면 그 달 정산에 들어가고, 넘기면 다음 달로 밀립니다.
+          차감이 붙어도 <b>리포트는 결국 반드시 써야 합니다</b> — 승인된 리포트만 정산에 들어가기 때문입니다.
+          <span style="opacity:.75">구간 금액은 잠정입니다 (결정 안건 D-13).</span></div>
       </div>
       <div class="locked">
         <div class="ic">🔒</div>
@@ -181,7 +187,7 @@ VIEWS.history = function () {
     </div>
   </div>
 
-  <div class="box tip"><b>원천징수 3.3%는 지각 차감을 뺀 금액 기준입니다</b>
+  <div class="box tip"><b>원천징수는 소득세 3% 와 지방소득세 0.3% 를 따로 계산합니다 — 각각 원 단위 절사</b>
     내 시급은 관리자가 설정한 값과 적용일만 보이고 강사는 수정할 수 없습니다.
     조회 범위는 <b>직전 급여 1건과 그 급여에 포함된 수업</b>까지입니다.</div>`;
 };
@@ -208,7 +214,7 @@ function rateSystemCard() {
   </div>`;
 }
 
-/* 히스토리 한 줄 — 연강 표시와 특이사항 버튼이 붙는다 (v20 s37·s40·s41) */
+/* 히스토리 한 줄 — 종류칩 · 특이사항 버튼 (V26 §2.7) */
 function historyRow(s) {
   const st = stu(s.studentId), b = blockState(s), pen = latePenalty(s);
   const c = chainOf(s), pay = sessionPay(s);
@@ -217,7 +223,7 @@ function historyRow(s) {
     <span class="tm"><b>${s.start}</b><i>${s.dur / 60}h</i></span>
     <span class="bd"><b>${esc(st.name)} · ${esc(s.subject)}</b>
       <span>${s.mode} · ${kindOf(s).label}${s.groupSize > 1 ? ` · 그룹 ${s.groupSize}명` : ''}
-        ${c.size > 1 ? ` · <b style="color:var(--blue);display:inline">${c.size}연강 ${c.index}번째</b>` : ''}
+
         ${pen ? ` · <b style="color:var(--red);display:inline">− ${won(pen)} 지각</b>` : ''}</span></span>
     <span class="note num" style="min-width:78px;text-align:right">${isCanceled(s) ? '—' : won(pay.amount)}</span>
     <span class="chip ${STATE_CHIP[b]}">${STATE_LABEL[b]}</span>

@@ -9,7 +9,13 @@ const NOW_MIN = 15 * 60 + 35;
 const HIRE = '2026-06-01';
 const ME = {
   name: '김범준', role: '강사',
-  rate: 45000, rateFrom: '2026-07-01',      // 기본 시급 — 나머지 단가는 여기서 파생 (v20 s38)
+  rate: 45000, rateFrom: '2026-07-01',      // 현재 기본 시급 — 나머지 단가는 여기서 파생 (V26 §4.1)
+  /* 시급 이력 (D8 확정) — 변경은 즉시 발효하되 그 이후 수업부터 적용된다. 소급 없음.
+     기준은 수업일이지 정산월이 아니므로 월중 변경이면 한 달 안에서 두 단가가 섞인다. */
+  rateHistory: [
+    { from: '2026-01-01', rate: 40000 },
+    { from: '2026-07-01', rate: 45000 },
+  ],
   tz: 'Asia/Seoul', tzLabel: '서울 · 대한민국 (KST, UTC+9)',
   tzPending: null,                           // {to,label,at} — 관리자 승인 대기
   ratePending: null,                         // {to,reason,at} — 시급 변경 신청 (월 1회)
@@ -30,7 +36,11 @@ const wdOf = iso => new Date(iso + 'T00:00:00Z').getUTCDay();
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 const monOf = iso => addDays(iso, wdOf(iso) === 0 ? -6 : 1 - wdOf(iso));
 const diffDays = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 86400000);
-const won = n => '₩' + Number(n).toLocaleString('ko-KR');
+/* 금액 문자열은 money.js 한 곳에서만 만든다 (ARCHITECTURE.md R-6).
+   money.js 가 먼저 로드되면 그것을 쓰고, 아니면 최소 형태로 대체한다. */
+const won = n => (typeof MONEY !== 'undefined')
+  ? MONEY.format(n)
+  : '₩' + String(Math.trunc(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const md = iso => `${+iso.slice(5, 7)}월 ${+iso.slice(8, 10)}일`;
 const mdw = iso => `${md(iso)} (${WD[wdOf(iso)]})`;
 
@@ -100,20 +110,41 @@ const STU = [
 const stu = id => STU.find(s => s.id === id);
 
 /* ── 수업 유형 (v20 s46) — 네모는 일반·Kinder, 마름모는 진단·모의 ── */
+/* 수업 종류 = 캘린더 **모양** 채널 + 리포트 **양식** + 정산 **단가**의 기준 (V26 §2.3 · §3 · §4.1)
+   색은 리포트 상태가 쓰므로, 종류는 모양과 헤더 밴드로만 구분한다.
+   band 색은 tokens.css --kind-* 에서 온다 (하드코딩 금지). */
 const KIND = {
-  regular: { key: 'regular', label: '일반',   shape: 'square',  band: null,      form: 'regular' },
-  kinder:  { key: 'kinder',  label: 'Kinder', shape: 'square',  band: '#9d174d', form: 'dev' },
-  assess:  { key: 'assess',  label: '진단',   shape: 'diamond', band: '#0e7490', form: 'assess' },
-  trial:   { key: 'trial',   label: '모의',   shape: 'diamond', band: '#6d28d9', form: 'dev' },
+  regular: { key: 'regular', label: '일반',   shape: 'square',  band: 'var(--kind-normal)', form: 'normal'     },
+  kinder:  { key: 'kinder',  label: 'Kinder', shape: 'square',  band: 'var(--kind-kinder)', form: 'kinder'     },
+  assess:  { key: 'assess',  label: '진단',   shape: 'diamond', band: 'var(--kind-diag)',   form: 'diagnostic' },
+  trial:   { key: 'trial',   label: '모의',   shape: 'diamond', band: 'var(--kind-mock)',   form: 'mock'       },
+  group:   { key: 'group',   label: '그룹',   shape: 'square',  band: 'var(--kind-group)',  form: 'group'      },
 };
+
+/* 리포트 5종 — 공통 3필드는 모두 같고, 고유 섹션만 다르다 (V26 §3) */
+const REPORT_FORM = {
+  normal:     { label: '일반 수업 리포트',   band: 'var(--kind-normal)', extra: null },
+  mock:       { label: '모의고사 리포트',    band: 'var(--kind-mock)',   extra: 'mock'   },
+  kinder:     { label: 'Kinder 수업 리포트', band: 'var(--kind-kinder)', extra: 'kinder' },
+  diagnostic: { label: '진단 리포트',        band: 'var(--kind-diag)',   extra: 'diag'   },
+  group:      { label: '그룹 수업 리포트',   band: 'var(--kind-group)',  extra: 'group'  },
+};
+
+/* 공통 3필드 최소 글자 수 — 검증 1·2 (V26 §3.1) */
+const REPORT_MINIMA = { did: 30, leftUndone: 15, nextPlan: 25 };
+/* 종류별 추가 최소 — 검증 10·11 */
+const REPORT_MINIMA_EXTRA = { groupCommon: 60, groupPerStudent: 40, kinderSection: 30 };
 
 /* ── 수업 — 관리자가 만들고 강사는 본다 ── */
 let SEQ = 100;
 const S = (date, st, dur, subject, studentId, mode, report, extra = {}) => ({
   id: SEQ++, date, start: st, dur, subject, studentId, mode,
-  kind: extra.kind || 'regular',       // regular | kinder | assess | trial
+  kind: extra.kind || 'regular',       // regular | kinder | assess | trial | group  (V26 §3)
   groupSize: extra.groupSize || 1,     // 그룹 수업이면 학생 수
-  report,                              // none | draft | submitted | approved
+  groupStudents: extra.groupStudents || null,   // 그룹 리포트 학생별 코멘트의 대상
+  lateMin: extra.lateMin || 0,         // 수업 지각 분 — late_record (관리자 입력)
+  report,                              // none | draft | submitted | approved | rejected
+  rejectReason: extra.rejectReason || null,     // report='rejected' 일 때 필수 (검증 12)
   canceled: extra.canceled || null,
   submittedAt: extra.submittedAt || null,
   content: extra.content || '', progress: extra.progress || '', homework: extra.homework || '',
@@ -165,7 +196,8 @@ const SESS = [
     { kind: 'kinder', submittedAt: '2026-08-18 11:20', ...chk('2026-08-18', '11:05') }),
   S('2026-08-20', '14:00', 60,  '진단고사 · Math G8',   4, '대면', 'none',   { kind: 'assess' }),   // 출결 X
   S('2026-08-21', '11:00', 60,  '모의수업 · Kinder 상담', 6, '비대면', 'none', { kind: 'trial' }),
-  S('2026-08-26', '10:00', 90,  'ELA Group Reading',   3, '대면', 'none',   { groupSize: 3 }),
+  S('2026-08-26', '10:00', 90,  'ELA Group Reading',   3, '대면', 'none',   { groupSize: 3, kind: 'group', groupStudents: [3, 1, 2] }),
+  S('2026-08-19', '14:00', 120, 'SAT Reading 그룹반',  2, '대면', 'none',   { groupSize: 3, kind: 'group', groupStudents: [2, 1, 3] }),
 ];
 
 /* ── 직전 급여(7월분)에 포함된 수업 — 전부 승인 완료 ── */

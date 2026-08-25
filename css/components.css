@@ -346,3 +346,14 @@
 
 /* 차감이 이미 확정된 리포트 — 경고가 아니라 결과다 */
 .penalty.done{ background:var(--green-deep); }
+
+
+/* ── v26 리포트 글자 수 카운터 · 필수 배지 · 개별 전달 체크 ─────────
+   최소 글자 수는 rules.js REPORT_MINIMA 한 곳에서 오고, 여기서는 색만 정한다. */
+.cnt.ok{ color:var(--fg-subtle); font-weight:700; }
+.cnt.no{ color:var(--red); font-weight:800; }
+.fld label .req{ margin-left:6px; padding:2px 7px; border-radius:999px;
+  background:var(--red); color:#fff; font-size:10px; font-weight:800; letter-spacing:-.01em; }
+.chk{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px;
+  font-weight:700; color:var(--fg-muted); cursor:pointer; }
+.chk input{ accent-color:var(--blue); width:14px; height:14px; }

@@ -31,7 +31,7 @@ function toast(msg) {
 const MENU = [
   { key: 'home',     ic: '⌂', label: '홈',            desc: '오늘 전체 스케줄과 오늘 할 일' },
   { key: 'calendar', ic: '▤', label: '캘린더',        desc: '내 수업만 주간·월간으로' },
-  { key: 'marks',    ic: '⊘', label: '가능·불가 표기', desc: '2주 단위 · 최소 1주 전' },
+  { key: 'marks',    ic: '⊘', label: '불가 시간', desc: '2주 단위 · 최소 1주 전' },
   { key: 'reports',  ic: '✎', label: '리포트',        desc: '안 쓴 리포트가 맨 위' },
   { key: 'guide',    ic: '▥', label: '수업 안내',      desc: '교재 · 스타일 · 진단 · 지침' },
   { key: 'history',  ic: '↺', label: '수업 히스토리',   desc: '일별 기록과 시급 정산' },
@@ -67,7 +67,7 @@ const canBack = () => !!(UI.modal || UI.panel != null || UI.stack.length);
 const POLICY = {
   home: { tag: '강사 권한', who: '화면에 없으면<br>할 수 없습니다',
     short: '권한을 최소로 줄였습니다. 화면에 없으면 할 수 없습니다.',
-    body: `<b>강사 화면에서 할 수 있는 일은 정해져 있습니다.</b> 내 수업 보기 · <span class="yes">가능·불가 시간 표기</span> ·
+    body: `<b>강사 화면에서 할 수 있는 일은 정해져 있습니다.</b> 내 수업 보기 · <span class="yes">불가 시간 등록</span> ·
       리포트 작성 · 교재 내려받기와 변경 요청 · 스케줄 변경 요청 · 특이사항 · 건의 사항 · 내 정산 조회 ·
       시간대와 시급 변경 <span class="yes">요청</span>.
       수업 생성·시간 확정·취소, 다른 강사와 담당이 아닌 학생 조회, 리포트 자체 승인, 시간대·시급 직접 변경은 <span class="no">관리자만</span> 합니다.` },
@@ -171,7 +171,7 @@ function render() {
     <button class="chip ${tzWait ? 'amber' : 'gray'} tz-chip" onclick="openModal('tz')" title="시간대 변경 요청">
       🌐 ${tzWait ? '시간대 승인 대기 ●' : ME.tzLabel.split(' · ')[0]}</button>
     <button class="chip ${rateWait ? 'amber' : 'gray'} tz-chip" onclick="openModal('rate')" title="시급 변경 신청">
-      ₩ ${rateWait ? '시급 승인 대기 ●' : won(ME.rate)}</button>
+      ${rateWait ? '시급 승인 대기 ●' : won(ME.rate) + '/시간'}</button>
     <div class="who">${ME.name} <span>· ${ME.role}</span></div>
     <button class="iconbtn" onclick="go('reports')" title="알림" aria-label="알림">🔔
       ${miss + pend ? `<span class="dot">${miss + pend}</span>` : ''}</button>`;

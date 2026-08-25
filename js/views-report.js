@@ -55,13 +55,13 @@ function penaltyBox(s, en) {
     ? { fixedLate: 'A late-submission deduction is final', fixedNone: 'Submitted on time — no deduction',
         approved: 'Approved — nothing left to change.', pending: 'Waiting for the manager to review.',
         sent: at => `Submitted ${at}.`, final: 'Final deduction',
-        left: m => `<b>${m} min</b> until the next step. `, must: 'The report is still required, however late.',
-        now: 'If you submit now', in1: 'After 1 hour', in4: 'After 4 hours', within1: 'Within 1 hour' }
+        left: d => `<b>${d} day(s)</b> left until the deadline. `, must: 'The report is still required, however late.',
+        now: 'If you submit now', nextIn: d => `In ${d} day${d > 1 ? 's' : ''}`, within1: 'No deduction yet' }
     : { fixedLate: '제출이 늦어 차감이 확정됐습니다', fixedNone: '제때 제출해 차감이 없습니다',
         approved: '승인 완료 — 더 고칠 것이 없습니다.', pending: '관리자 확인을 기다리는 중입니다.',
         sent: at => `제출 ${at}.`, final: '확정 차감',
-        left: m => `다음 차감까지 <b>${m}분</b> 남았습니다. `, must: '늦어도 리포트는 <b>반드시</b> 써야 합니다.',
-        now: '지금 제출하면', in1: '1시간이 지나면', in4: '4시간이 지나면', within1: '1시간 이내였다면' };
+        left: d => `기한까지 <b>${d}일</b> 남았습니다. `, must: '늦어도 리포트는 <b>반드시</b> 써야 합니다. 승인된 리포트만 정산에 들어갑니다.',
+        now: '지금 제출하면', nextIn: d => `${d}일 더 지나면`, within1: '기한 안입니다' };
 
   /* 이미 낸 리포트에 "지금 제출하면 −10,000" 을 띄우면 강사는 또 깎이는 줄 안다 */
   if (s.report === 'submitted' || s.report === 'approved') {
@@ -77,19 +77,23 @@ function penaltyBox(s, en) {
   const pn = penaltyNow(s);
   return `<div class="penalty">
     <div class="bd"><div class="lead">${pn.head}</div>
-      <div class="sub">${pn.left != null ? T.left(pn.left) : ''}${T.must}</div></div>
+      <div class="sub">${pn.left != null && pn.left >= 0 ? T.left(pn.left) : ''}${T.must}</div></div>
     <div class="cases">
       <div class="case ${pn.amount ? '' : 'ok'}"><div class="w">${T.now}</div><div class="a">${amt(pn.amount)}</div></div>
-      ${pn.next ? `<div class="case"><div class="w">${pn.next === 5000 ? T.in1 : T.in4}</div>
+      ${pn.next != null ? `<div class="case"><div class="w">${T.nextIn(pn.nextIn)}</div>
         <div class="a">${amt(pn.next)}</div></div>`
+        : pn.over ? `<div class="case"><div class="w">10일 초과</div><div class="a">정산 제외</div></div>`
         : `<div class="case ok"><div class="w">${T.within1}</div><div class="a">0원</div></div>`}
     </div></div>`;
 }
 
 /* ══ 출결 1차 체크 (A27) ══════════════════════════════════════
-   리포트 탭과 별개 축이라 탭 위 고정 위치에 둔다 — 탭을 옮겨도 사라지지 않는다.
-   권한 판정은 rules.js 의 canEditAttendance() 하나만 부른다. 여기서 다시 쓰지 않는다. */
+   ⚠️ v26 화면 7개에 출결 UI 가 없다. 존치 여부는 결정 안건 **D-14 (P0)**.
+      결정 전까지 화면에서 끈다 — 열려 있는 안건 위에 코드를 쌓지 않는다 (규칙 P-1).
+      되살릴 때는 A27_ENABLED 만 true 로 바꾸면 된다. 아래 구현은 그대로 둔다.       */
+const A27_ENABLED = false;
 function attendanceStrip(s) {
+  if (!A27_ENABLED) return '';
   const mode = canEditAttendance(s);
   const state = attendanceState(s);
   if (mode === 'readonly' && state === 'pending') {
@@ -132,6 +136,7 @@ function openSession(id) {
   UI.form = { content: s.content, progress: s.progress, homework: s.homework,
     dev: s.dev ? JSON.parse(JSON.stringify(s.dev)) : {},
     assess: s.assess ? JSON.parse(JSON.stringify(s.assess)) : { mathArea: [], mathWhy: [], engArea: [], engWhy: [] },
+    perStudent: null,                 // 그룹 리포트 학생별 코멘트 — 회차마다 초기화
     lang: s.lang || 'ko', touched: false };
   UI.chg = { date: s.date, start: s.start, end: endTime(s), reason: '' };
   renderLayer();
@@ -145,8 +150,13 @@ function panelHtml() {
 
   let body = '', foot = '';
   if (UI.ptab === 'report') {
-    const form = reportForm(s);
-    body = form === 'dev' ? tabDev(s) : form === 'assess' ? tabAssess(s) : tabReport(s);
+    /* 리포트 5종 디스패치 (V26 §3) — 공통 3필드는 같고 고유 섹션만 다르다 */
+    const form = reportFormOf(s);
+    body = form === 'kinder'     ? tabDev(s)      // 발달 4영역 3지선다
+         : form === 'diagnostic' ? tabAssess(s)   // 현재 수준 · 강약 · 권장 커리큘럼
+         : form === 'mock'       ? tabAssess(s)   // 영역별 점수 · 오답 유형
+         : form === 'group'      ? tabGroup(s)    // 공통 60자 + 학생별 40자
+         :                         tabReport(s);  // 일반
     foot = `<button class="btn ghost" onclick="saveDraft(${s.id})">임시 저장</button>
       <button class="btn go sp" onclick="submitReport(${s.id})">작성 완료 · 승인 요청</button>`;
   } else if (UI.ptab === 'change') {
@@ -160,7 +170,14 @@ function panelHtml() {
 
   const k = kindOf(s);
   return `<div class="grab"></div>
-    ${k.band ? `<div class="pband" style="background:${k.band}">${k.label} 리포트 · ${reportForm(s) === 'assess' ? '점수와 틀린 유형' : '발달 4영역'}</div>` : ''}
+    ${(() => { const rf = reportMeta(s); const sub = {
+        normal: '무엇을 했나 · 다루지 못한 것 · 다음 계획',
+        kinder: '발달 4영역 · 점수 표현을 쓰지 않습니다',
+        mock: '영역별 점수 · 오답 유형 · 다음 목표',
+        diagnostic: '현재 수준 · 강점과 약점 · 권장 커리큘럼',
+        group: `공통 ${REPORT_MINIMA_EXTRA.groupCommon}자 + 학생별 ${REPORT_MINIMA_EXTRA.groupPerStudent}자`,
+      }[reportFormOf(s)];
+      return `<div class="pband" style="background:${rf.band}">${rf.label} · ${sub}</div>`; })()}
     <div class="ph"><div class="row nowrap">
       <div class="sp"><div class="t">${esc(st.name)} · ${esc(s.subject)}</div>
         <div class="s">${mdw(s.date)} ${s.start}–${endTime(s)} · ${s.mode} · ${st.grade} · ${k.label}</div></div>
@@ -182,6 +199,36 @@ function panelHtml() {
       ${body}
     </div>
     <div class="pfoot">${foot}</div>`;
+}
+
+/* ── 그룹 리포트 (V26 §3 · 검증 10·11) ──────────────────────────
+   공통 본문 60자 이상 + 학생마다 40자 이상. 개별 전달 여부를 학생별로 고른다. */
+function tabGroup(s) {
+  const f = UI.form;
+  f.perStudent = f.perStudent || (s.groupStudents || [s.studentId]).map(id => ({ studentId: id, comment: '', deliver: true }));
+  const common = counterOf(f.content, REPORT_MINIMA_EXTRA.groupCommon);
+  return `
+  ${penaltyBox(s)}
+  <div class="box tip"><b>그룹 수업은 두 번 씁니다</b>
+    공통 본문은 모두에게 같이 나가고, 학생별 코멘트는 그 학생 학부모께만 나갑니다.
+    같은 문장을 학생마다 복사하지 마세요 — 학부모가 알아봅니다.</div>
+
+  <div class="fld"><label><span class="n">1</span>공통 — 오늘 수업에서 다 함께 한 것
+    <span class="req">필수</span></label>
+    <textarea rows="4" oninput="UI.form.content=this.value;renderLayer()"
+      placeholder="예) Unit 5 지문 두 개를 함께 읽고 문단별 주제문을 찾았습니다.">${esc(f.content || '')}</textarea>
+    <div class="cnt ${common.ok ? 'ok' : 'no'}">${common.label}</div></div>
+
+  ${f.perStudent.map((p, i) => { const c = counterOf(p.comment, REPORT_MINIMA_EXTRA.groupPerStudent);
+    return `<div class="fld"><label><span class="n">${i + 2}</span>${esc(stu(p.studentId).name)} 학생
+      <span class="req">필수</span></label>
+      <textarea rows="3" oninput="UI.form.perStudent[${i}].comment=this.value;renderLayer()"
+        placeholder="이 학생만의 관찰을 적어 주세요">${esc(p.comment || '')}</textarea>
+      <div class="row nowrap" style="margin-top:6px">
+        <div class="cnt sp ${c.ok ? 'ok' : 'no'}">${c.label}</div>
+        <label class="chk"><input type="checkbox" ${p.deliver ? 'checked' : ''}
+          onchange="UI.form.perStudent[${i}].deliver=this.checked"> 이 학생 학부모께 개별 전달</label></div></div>`;
+  }).join('')}`;
 }
 
 /* ── 리포트 작성 ── */
