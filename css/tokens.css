@@ -17,6 +17,13 @@
   --amber:#b45309; --amber-deep:#7c4a02; --amber-soft:#fffbeb; --amber-line:#fde68a;
   --navy:#0f172a; --navy-2:#1e293b;
 
+  /* v26 — 리포트 5종 헤더 색 (docs/V26-SPEC.md §3) */
+  --kind-normal:#1e3a8a; --kind-normal-so:#eef2ff;
+  --kind-mock:#6d28d9;   --kind-mock-so:#f5f3ff;
+  --kind-kinder:#9f1239; --kind-kinder-so:#fff1f2;
+  --kind-diag:#0f766e;   --kind-diag-so:#f0fdfa;
+  --kind-group:#c2410c;  --kind-group-so:#fff7ed;
+
   /* 형태 */
   --r-sm:10px; --r:14px; --r-lg:18px; --r-xl:22px;
   --sh:0 1px 2px rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.06);
