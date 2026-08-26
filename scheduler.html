@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TACO ERP — 스케줄 (관리자)</title>
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/scheduler.css">
+</head>
+<body>
+  <div class="sh">
+    <header class="topbar">
+      <span class="brand">TACO</span>
+      <nav class="tabs" id="tabs"></nav>
+      <span class="who" id="who"></span>
+    </header>
+
+    <div class="filterbar" id="filterbar"></div>
+
+    <div class="panes" id="panes"></div>
+
+    <div class="clipbar" id="clipbar" hidden></div>
+    <div class="runner" id="runner"></div>
+  </div>
+
+  <div class="scrim2" id="scrim2" hidden></div>
+  <div class="dlg" id="dlg" hidden role="dialog" aria-modal="true"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/guard.js"></script>
+  <script src="js/recurrence.js"></script>
+  <script src="js/scheduler.js"></script>
+</body>
+</html>
