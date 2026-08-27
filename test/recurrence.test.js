@@ -218,5 +218,64 @@ sec('11. 요일을 넘는 이동');
   ok(moved && moved.movedFrom === '2026-08-19', '옮긴 날에 나타난다 (movedFrom 표시)');
 }
 
+/* ── 12. 수강 학생 2범위 (명세서 v2 §79·§80 · D-R21 · D-R22) ─────────── */
+sec('12. 수강 학생 — 이 회차만 / 아주');
+{
+  const s = base();   // SER 1 에 학생 101 · 102
+  ok(R.rosterAt(s, 1, '2026-08-19').join() === '101,102', '그날 명단 2명');
+  ok(R.occ('2026-08-19', s).find(o => o.serId === 1).students.join() === '101,102', 'occ 가 명단을 담는다');
+
+  // 넣기
+  const a = R.applyRoster(s, { serId: 1, studentId: 103, op: 'add' });
+  ok(R.rosterAt(a, 1, '2026-08-19').length === 3, '넣기 → 3명');
+  ok(R.rosterAt(a, 1, '2026-08-24').length === 3, '다음 회차도 3명');
+
+  // 이 회차만 빼기
+  const b = R.applyRoster(a, { serId: 1, onDate: '2026-08-19', studentId: 103, op: 'dropOnce' });
+  ok(R.rosterAt(b, 1, '2026-08-19').length === 2, '이 회차만 → 그날 2명');
+  ok(R.rosterAt(b, 1, '2026-08-24').length === 3, '다음 주는 3명 유지 (핵심)');
+  ok(b.SER_STU.filter(r => r.serId === 1).length === 3, 'SER_STU 는 그대로 3명');
+  const o19 = R.occ('2026-08-19', b).find(o => o.serId === 1);
+  ok(o19.students.join() === '101,102' && o19.studentsOut.join() === '103', 'occ 가 뺀 사람도 알려준다');
+
+  // 되돌리기
+  const c = R.applyRoster(b, { serId: 1, onDate: '2026-08-19', studentId: 103, op: 'undoOnce' });
+  ok(R.rosterAt(c, 1, '2026-08-19').length === 3, '되돌리기 → 3명');
+  ok(!c.EXC.some(e => e.serId === 1 && e.onDate === '2026-08-19'), '비어 버린 EXC 는 정리된다');
+
+  // 아주 빼기
+  const d = R.applyRoster(b, { serId: 1, studentId: 103, op: 'dropAll' });
+  ok(R.rosterAt(d, 1, '2026-08-19').length === 2 && R.rosterAt(d, 1, '2026-08-24').length === 2,
+     '아주 빼기 → 모든 회차에서 2명');
+  ok(!d.EXC.some(e => e.serId === 1 && (e.stuOut || []).includes(103)),
+     '명단에서 빠졌으므로 그날 제외도 함께 정리된다 (유령 방지)');
+
+  // 아주 뺀 뒤 다시 넣기
+  const e2 = R.applyRoster(b, { serId: 1, studentId: 103, op: 'dropAll' });
+  const f2 = R.applyRoster(e2, { serId: 1, studentId: 103, op: 'add' });
+  ok(R.rosterAt(f2, 1, '2026-08-19').length === 3, '다시 넣으면 그날에도 보인다');
+
+  // 범위 버튼
+  ok(R.rosterScopes(s, 1, 101, '2026-08-19').join() === 'dropOnce,dropAll', '명단에 있으면 빼기 2가지');
+  ok(R.rosterScopes(s, 1, 999, '2026-08-19').join() === 'add', '명단에 없으면 넣기만');
+  ok(R.rosterScopes(b, 1, 103, '2026-08-19').join() === 'undoOnce,dropAll', '그날만 빠진 사람은 되돌리기');
+
+  // 단가 재계산 (D-R22)
+  const r = R.rosterAfter(a, 1, '2026-08-19', { cap: 4, classTotal: 210000 });
+  ok(r.count === 3 && r.room === 1 && r.unitPrice === 70000, '3명 · 1자리 남음 · 1인 70,000원', r);
+  const r2 = R.rosterAfter(b, 1, '2026-08-19', { cap: 4, classTotal: 210000 });
+  ok(r2.count === 2 && r2.unitPrice === 105000, '그날 2명이면 1인 105,000원', r2);
+  ok(!r.overCap, '정원 안이면 overCap=false');
+
+  // 다른 조작과 섞여도 EXC 가 한 행이다
+  const g = R.applyEdit(b, { serId: 1, onDate: '2026-08-19', scope: 'this', patch: { startMin: 660, endMin: 720 } });
+  const rows = g.EXC.filter(e => e.serId === 1 && e.onDate === '2026-08-19');
+  ok(rows.length === 1 && rows[0].startMin === 660 && rows[0].stuOut.join() === '103',
+     '시간 예외와 학생 제외가 같은 EXC 행에 함께 산다', rows);
+  ok(R.applyEdit(b, { serId: 1, onDate: '2026-08-19', scope: 'all', patch: { startMin: 540, endMin: 600 } })
+      .EXC.some(e => e.onDate === '2026-08-19' && e.stuOut.join() === '103'),
+     '「모두」로 시간을 바꿔도 학생 제외는 초기화되지 않는다');
+}
+
 console.log(`\n${'─'.repeat(56)}\n  통과 ${pass} · 실패 ${fail}\n`);
 process.exit(fail ? 1 : 0);

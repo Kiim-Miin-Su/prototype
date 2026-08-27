@@ -14,6 +14,8 @@
      D-R18  「모두」는 바뀐 필드를 담은 EXC 를 초기화한다. 휴강은 남긴다.
      D-R19  붙여넣기 결과는 언제나 새 SER. EXC 는 따라오지 않는다.
      D-R20  향후·모두의 선검사 상한은 오늘+90일 또는 to_date 중 이른 쪽.
+     D-R21  학생 「이 회차만 빼기」는 EXC.stuOut, 「아주 빼기」는 SER_STU 에서 제거.
+            그날 명단은 occ(date) 가 stuOut 을 걸러 만든다 (명세서 v2 §79·§80).
 
    이 파일은 **순수 함수만** 담는다. DOM 을 만지지 않고, 전역 상태를 쓰지 않는다.
    화면(scheduler.js)과 서버가 같은 판정을 쓰려면 여기 말고 다른 곳에 두면 안 된다.
@@ -119,6 +121,13 @@ const RECUR = (() => {
       });
     });
 
+    out.forEach(o => {
+      const roster = (state.SER_STU || []).filter(r => r.serId === o.serId).map(r => r.studentId);
+      const e = excs.find(x => x.serId === o.serId && x.onDate === o.onDate);
+      const outIds = (e && e.stuOut) || [];
+      o.students = roster.filter(id => !outIds.includes(id));
+      o.studentsOut = roster.filter(id => outIds.includes(id));
+    });
     return out.sort((a, b) => a.startMin - b.startMin || a.serId - b.serId);
   }
 
@@ -133,6 +142,8 @@ const RECUR = (() => {
       roomId:   (e && e.roomId   != null) ? e.roomId   : ser.roomId,
       kind: ser.kind, sub: ser.sub, mode: ser.mode, title: ser.title,
       isException: !!e,
+      // 그날 명단 — SER_STU 에서 EXC.stuOut 을 뺀다 (D-R21). 이 배열이 유일한 출처다.
+      students: null,   // occ() 가 채운다
       movedFrom: (e && e.newDate && e.newDate !== e.onDate) ? e.onDate : null,
       canceled: false,
     };
@@ -239,7 +250,8 @@ const RECUR = (() => {
       log.push(`EXC (${target.id}, ${e.onDate}) 초기화`);
     });
     S.EXC = S.EXC.filter(e => e.canceled || e.newDate != null ||
-      e.startMin != null || e.endMin != null || e.teacherId != null || e.roomId != null);
+      e.startMin != null || e.endMin != null || e.teacherId != null || e.roomId != null ||
+      (e.stuOut && e.stuOut.length));
 
     return { ...S, __log: log, __effScope: eff };
   }
@@ -396,6 +408,98 @@ const RECUR = (() => {
     return { ...S, __log: [`SER ${ser.id} 신규`], __effScope: 'this' };
   }
 
+
+  /* ── 수강 학생 — 2범위 (명세서 v2 §79·§80 · D-R21) ──────────────────
+     시간·강사·강의실은 3범위(이번만/향후/모두)인데 학생은 2범위다.
+     「이 회차만」은 EXC.stuOut, 「아주」는 SER_STU 에서 제거한다.
+     묻는 말이 다르므로 범위 다이얼로그를 재사용하지 않는다 (CALENDAR.md §5A.7). */
+
+  const ROSTER_OPS = ['add', 'dropOnce', 'undoOnce', 'dropAll'];
+
+  /** 그날 명단 — occ() 와 같은 규칙을 쓴다. 두 곳으로 갈라지면 어긋난다. */
+  function rosterAt(state, serId, date) {
+    const roster = (state.SER_STU || []).filter(r => r.serId === serId).map(r => r.studentId);
+    const e = (state.EXC || []).find(x => x.serId === serId && x.onDate === date);
+    const outIds = (e && e.stuOut) || [];
+    return roster.filter(id => !outIds.includes(id));
+  }
+
+  /** 학생에게 열 수 있는 범위. 「향후」는 결정 안건 N-15 라 넣지 않는다. */
+  function rosterScopes(state, serId, studentId, onDate) {
+    const inRoster = (state.SER_STU || []).some(r => r.serId === serId && r.studentId === studentId);
+    if (!inRoster) return ['add'];
+    return rosterAt(state, serId, onDate).includes(studentId)
+      ? ['dropOnce', 'dropAll']
+      : ['undoOnce', 'dropAll'];
+  }
+
+  const ROSTER_LABEL = {
+    add: '넣기', dropOnce: '이 회차만 빼기', undoOnce: '되돌리기', dropAll: '아주 빼기',
+  };
+
+  /**
+   * @param op 'add' | 'dropOnce' | 'undoOnce' | 'dropAll'
+   * onDate 는 dropOnce · undoOnce 에 필수다.
+   */
+  function applyRoster(state, { serId, onDate, studentId, op, nextId }) {
+    if (!ROSTER_OPS.includes(op)) throw new Error('unknown roster op: ' + op);
+    if ((op === 'dropOnce' || op === 'undoOnce') && !onDate) throw new Error(op + ' 에는 onDate 가 필요합니다');
+    const S = clone(state);
+    const ser = S.SER.find(s => s.id === serId);
+    if (!ser) throw new Error('SER not found: ' + serId);
+    const genId = mkGen(S, nextId);
+    const log = [];
+
+    if (op === 'add') {
+      if (!S.SER_STU.some(r => r.serId === serId && r.studentId === studentId)) {
+        S.SER_STU.push({ serId, studentId });
+        log.push(`SER_STU += ${studentId}`);
+      }
+      // 아주 빼기 뒤 다시 넣으면 그날 제외도 함께 풀어 준다 — 안 그러면 넣었는데 안 보인다
+      S.EXC.forEach(e => {
+        if (e.serId === serId && e.stuOut && e.stuOut.includes(studentId)) {
+          e.stuOut = e.stuOut.filter(id => id !== studentId);
+          log.push(`EXC (${e.onDate}) stuOut −= ${studentId}`);
+        }
+      });
+    } else if (op === 'dropOnce') {
+      const e = upsertExc(S, serId, onDate, genId);
+      e.stuOut = e.stuOut || [];
+      if (!e.stuOut.includes(studentId)) { e.stuOut.push(studentId); log.push(`EXC (${onDate}) stuOut += ${studentId}`); }
+    } else if (op === 'undoOnce') {
+      const e = S.EXC.find(x => x.serId === serId && x.onDate === onDate);
+      if (e && e.stuOut) { e.stuOut = e.stuOut.filter(id => id !== studentId); log.push(`EXC (${onDate}) stuOut −= ${studentId}`); }
+    } else {
+      S.SER_STU = S.SER_STU.filter(r => !(r.serId === serId && r.studentId === studentId));
+      // 명단에서 빠졌으므로 그날 제외는 의미가 없다. 남겨 두면 되돌릴 때 유령이 된다
+      S.EXC.forEach(e => {
+        if (e.serId === serId && e.stuOut) e.stuOut = e.stuOut.filter(id => id !== studentId);
+      });
+      log.push(`SER_STU −= ${studentId}`);
+    }
+    S.EXC = S.EXC.filter(e => e.canceled || e.newDate != null || e.startMin != null ||
+      e.endMin != null || e.teacherId != null || e.roomId != null || (e.stuOut && e.stuOut.length));
+
+    return { ...S, __log: log, __effScope: op };
+  }
+
+  /** 인원이 바뀌면 1인 단가와 총액이 바뀐다 (D-R22). 화면이 다시 계산하지 않게 여기서 돌려준다. */
+  function rosterAfter(state, serId, date, opts) {
+    const o = opts || {};
+    const ids = rosterAt(state, serId, date);
+    const cap = o.cap != null ? o.cap : null;
+    const total = o.classTotal != null ? o.classTotal : null;
+    return {
+      count: ids.length,
+      cap,
+      room: cap == null ? null : Math.max(0, cap - ids.length),
+      students: ids,
+      total,
+      unitPrice: (total != null && ids.length) ? Math.floor(total / ids.length) : null,
+      overCap: cap != null && ids.length > cap,
+    };
+  }
+
   /* ── 충돌 선검사 (5A.4) ──────────────────────────────────────────────
      범위 안의 모든 발생일에 guardResource 를 돌린다. 클라이언트와 서버가
      같은 함수를 쓴다 — 두 벌로 나뉘는 순간 어긋난다.                       */
@@ -433,7 +537,7 @@ const RECUR = (() => {
     return {
       SER: (state.SER || []).map(o => ({ ...o })),
       SER_STU: (state.SER_STU || []).map(o => ({ ...o })),
-      EXC: (state.EXC || []).map(o => ({ ...o })),
+      EXC: (state.EXC || []).map(o => ({ ...o, stuOut: (o.stuOut || []).slice() })),
     };
   }
   function mkGen(S, nextId) {
@@ -445,7 +549,8 @@ const RECUR = (() => {
     let e = S.EXC.find(x => x.serId === serId && x.onDate === onDate);
     if (!e) {
       e = { id: genId(), serId, onDate, canceled: false, newDate: null,
-            startMin: null, endMin: null, teacherId: null, roomId: null, reason: null };
+            startMin: null, endMin: null, teacherId: null, roomId: null, reason: null,
+            stuOut: [] };
       S.EXC.push(e);
     }
     return e;
@@ -461,6 +566,8 @@ const RECUR = (() => {
     applyEdit, applyDelete, applyPaste, applyCreate,
     // 클립보드
     copyPayload, copyMany,
+    // 수강 학생 2범위 (D-R21 · D-R22)
+    rosterAt, rosterScopes, applyRoster, rosterAfter, ROSTER_LABEL, ROSTER_OPS,
     // 충돌
     precheck, conflictSummary,
     // 상수 (잠정)
