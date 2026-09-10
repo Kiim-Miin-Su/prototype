@@ -1,3 +1,9 @@
+/** @file-guide
+ * 목적: layout.css (historical)
+ * 책임/재사용: 읽기 전용 당시 자료다. 현행 명세/구현 근거로 복사하지 않고 최신 docs/CLAUDE.md와 원본을 대조한다.
+ * 검증/작업 지침: docs/contracts/FILE-GUIDE.md · docs/AGENT.md · docs/CLAUDE.md
+ */
+
 /* ══════════════════════════════════════════════════════════════
    셸 — 사이드바 / 상단바 / 본문 / 하단 탭바
    같은 마크업을 폭에 따라 세 가지 배치로 접는다.

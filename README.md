@@ -1,3 +1,9 @@
+<!-- @file-guide
+목적: 강사 백오피스 프로토타입 (document)
+책임/재사용: 이 문서의 주제만 기록하고 공통 지시는 docs/AGENT.md, 현재 작업은 docs/CLAUDE.md를 연결한다. 과거 수치를 현행 완료로 복제하지 않는다.
+검증/작업 지침: docs/contracts/FILE-GUIDE.md · docs/AGENT.md · docs/CLAUDE.md
+-->
+
 # 강사 백오피스 프로토타입
 
 `index.html` 하나를 열면 됩니다. 빌드도 서버도 필요 없습니다.

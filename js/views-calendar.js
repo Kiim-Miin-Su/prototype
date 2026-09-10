@@ -1,3 +1,9 @@
+/** @file-guide
+ * 목적: views-calendar.js (historical)
+ * 책임/재사용: 읽기 전용 당시 자료다. 현행 명세/구현 근거로 복사하지 않고 최신 docs/CLAUDE.md와 원본을 대조한다.
+ * 검증/작업 지침: docs/contracts/FILE-GUIDE.md · docs/AGENT.md · docs/CLAUDE.md
+ */
+
 /* ══ 캘린더 — 넓으면 주간 그리드, 좁으면 아젠다. 뷰 함수는 하나다. ══ */
 'use strict';
 
