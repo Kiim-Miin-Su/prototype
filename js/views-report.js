@@ -55,13 +55,13 @@ function penaltyBox(s, en) {
     ? { fixedLate: 'A late-submission deduction is final', fixedNone: 'Submitted on time — no deduction',
         approved: 'Approved — nothing left to change.', pending: 'Waiting for the manager to review.',
         sent: at => `Submitted ${at}.`, final: 'Final deduction',
-        left: d => `<b>${d} day(s)</b> left until the deadline. `, must: 'The report is still required, however late.',
-        now: 'If you submit now', nextIn: d => `In ${d} day${d > 1 ? 's' : ''}`, within1: 'No deduction yet' }
+        must: 'Writing the report is what counts for pay — approval is not required. Only late submission is deducted.',
+        now: 'If you submit now', within1: 'Within the first hour' }
     : { fixedLate: '제출이 늦어 차감이 확정됐습니다', fixedNone: '제때 제출해 차감이 없습니다',
         approved: '승인 완료 — 더 고칠 것이 없습니다.', pending: '관리자 확인을 기다리는 중입니다.',
         sent: at => `제출 ${at}.`, final: '확정 차감',
-        left: d => `기한까지 <b>${d}일</b> 남았습니다. `, must: '늦어도 리포트는 <b>반드시</b> 써야 합니다. 승인된 리포트만 정산에 들어갑니다.',
-        now: '지금 제출하면', nextIn: d => `${d}일 더 지나면`, within1: '기한 안입니다' };
+        must: '<b>쓰기만 하면 정산에 들어갑니다</b> — 승인 여부는 보지 않습니다. 깎이는 것은 늦은 제출뿐입니다.',
+        now: '지금 제출하면', within1: '수업 종료 후 1시간 안' };
 
   /* 이미 낸 리포트에 "지금 제출하면 −10,000" 을 띄우면 강사는 또 깎이는 줄 안다 */
   if (s.report === 'submitted' || s.report === 'approved') {
@@ -74,24 +74,30 @@ function penaltyBox(s, en) {
         <div class="case ${fixed ? '' : 'ok'}"><div class="w">${T.final}</div><div class="a">${amt(fixed)}</div></div>
       </div></div>`;
   }
+  /* 차감은 **수업 종료 후 시간**으로만 정해진다 (D-R32). 기한(10일)은 독촉일 뿐 정산 제외 사유가 아니다. */
   const pn = penaltyNow(s);
   return `<div class="penalty">
     <div class="bd"><div class="lead">${pn.head}</div>
-      <div class="sub">${pn.left != null && pn.left >= 0 ? T.left(pn.left) : ''}${T.must}</div></div>
+      <div class="sub">${T.must}</div></div>
     <div class="cases">
       <div class="case ${pn.amount ? '' : 'ok'}"><div class="w">${T.now}</div><div class="a">${amt(pn.amount)}</div></div>
-      ${pn.next != null ? `<div class="case"><div class="w">${T.nextIn(pn.nextIn)}</div>
-        <div class="a">${amt(pn.next)}</div></div>`
-        : pn.over ? `<div class="case"><div class="w">10일 초과</div><div class="a">정산 제외</div></div>`
-        : `<div class="case ok"><div class="w">${T.within1}</div><div class="a">0원</div></div>`}
+      ${pn.next != null
+        ? `<div class="case"><div class="w">${esc(pn.nextSay)}</div><div class="a">${amt(pn.next)}</div></div>`
+        : `<div class="case"><div class="w">${esc(LATE_REPORT_TIERS[0].short)}</div>
+           <div class="a">${amt(LATE_REPORT_TIERS[0].amount)}</div></div>`}
     </div></div>`;
 }
 
 /* ══ 출결 1차 체크 (A27) ══════════════════════════════════════
-   ⚠️ v26 화면 7개에 출결 UI 가 없다. 존치 여부는 결정 안건 **D-14 (P0)**.
-      결정 전까지 화면에서 끈다 — 열려 있는 안건 위에 코드를 쌓지 않는다 (규칙 P-1).
-      되살릴 때는 A27_ENABLED 만 true 로 바꾸면 된다. 아래 구현은 그대로 둔다.       */
-const A27_ENABLED = false;
+   ✅ 2026-08-27 대표 결정 6번 (D-R35) — **존치 확정.**
+      "오늘 및 이전 스케줄에 대한 출결 사항은 매니저 이상만 CRUD 가능"
+
+      · 강사는 **당일 최초 체크 1회**만 한다. 찍힌 뒤에는 읽기 전용이다.
+      · 오늘·이전 회차의 수정·삭제·되돌리기는 **매니저 이상**만 한다.
+      · 앞으로의 회차에는 출결이 없다 (아직 일어나지 않았다).
+      · 화면은 강사에게 수정 버튼을 **숨긴다.** 403 을 보여 주지 않는다.
+      판정은 rules.js 의 canEditAttendance() 가 한다 — 여기서 role 을 비교하지 않는다. */
+const A27_ENABLED = true;
 function attendanceStrip(s) {
   if (!A27_ENABLED) return '';
   const mode = canEditAttendance(s);

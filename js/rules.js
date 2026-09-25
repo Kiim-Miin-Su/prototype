@@ -2,9 +2,15 @@
    도메인 규칙 — 화면은 이 파일을 읽기만 하고 다시 계산하지 않는다.
    정본: docs/V26-SPEC.md  (v26 · 2026-08-25)
 
+   2026-08-27 대표 결정 (docs/decisions/DECISIONS-2026-08-27.md)
+     · 정산 조건    승인 → **작성했는가 하나** (D-R7)              ← countsForSettlement()
+     · 지각 차감    일수 구간 → **수업 종료 후 시간** (D-R32)      ← LATE_REPORT_TIERS
+                    1시간↑ 5,000원 · 4시간↑ 10,000원 · 그 위로 안 늘어난다
+     · 출결        보류 → **존치. 매니저 이상만 CRUD** (D-R35)     ← A27_ENABLED = true
+
    v20 → v26 로 바뀐 것
-     · 정산에 들어가는 조건  출결 확정 → **리포트 승인(approved)**  ← countsForSettlement()
-     · 차감 시계             시간 단위 누진 → **수업일 + 10일 단일 기한**  ← isOverdue()
+     · 정산에 들어가는 조건  출결 확정 → 리포트 승인 → **리포트 작성**  ← countsForSettlement()
+     · 차감 시계             시간 단위 누진 → 수업일+10일 → **수업 종료 후 시간**  ← tierFor()
      · 원천징수              3.3% 일괄 → **소득세 3% + 지방소득세 0.3% 분리**  ← withholding()
      · 시급                  고정 → **이력(effective_from). 변경은 이후 수업부터**  ← rateAt()
      · 캘린더 색             진행 상태 → **리포트 상태**  ← blockState()
@@ -85,13 +91,25 @@ const STATE_RAIL  = { miss: 'var(--red)', sched: 'var(--blue)', done: 'var(--gre
                       pend: 'var(--amber)', rej: 'var(--kind-kinder)', cancel: '#cbd5e1' };
 
 /* ── 불변식 I-2 · 정산에 들어가는 조건은 이것 하나다 ──────────────────
-   화면 코드에서 s.report === 'approved' 를 직접 비교하지 않는다.
-   v20→v26 에서 이 조건이 이미 한 번 바뀌었고(출결 확정 → 리포트 승인),
-   다음에 또 바뀔 때 고칠 곳이 한 줄이어야 한다. (ARCHITECTURE.md R-4) */
-const countsForSettlement = s => !isCanceled(s) && s.report === 'approved';
+   2026-08-27 대표 결정 1번 (D-R7):
+     "강사료는 리포트 작성 후 바로 지급 (반려, 최초 승인, 재승인 급여 차감 없음)"
+
+   → 조건은 **「리포트를 썼는가」 하나**다. 승인 여부를 보지 않는다.
+     반려되어 다시 쓰거나 승인이 늦어져도 급여가 깎이지 않는다.
+     깎이는 것은 **지각 제출뿐**이다 (LATE_REPORT_TIERS).
+
+   화면 코드에서 s.report 를 직접 비교하지 않는다. 이 조건은 이미 두 번 바뀌었고
+   (출결 확정 → 리포트 승인 → 리포트 작성), 다음에 또 바뀔 때 고칠 곳이 한 줄이어야 한다.
+   (ARCHITECTURE.md R-4) */
+const REPORT_WRITTEN = ['submitted', 'approved', 'rejected'];   // 썼다 = 제출했다
+const hasReport = s => REPORT_WRITTEN.includes(s.report);
+const countsForSettlement = s => !isCanceled(s) && hasReport(s);
 
 /* ── 10일 기한 (V26 §3.3) ─────────────────────────────────────────
-   차단이 아니라 경고다. 늦어도 쓸 수 있고, 다만 그 달 정산에서 빠진다. */
+   차단이 아니라 **독촉**이다. 늦어도 쓸 수 있고, 쓰면 정산에 들어간다 (D-R7).
+   ⚠️ 2026-08-27 결정 이후 이 기한은 **정산 제외 사유가 아니다.**
+      깎이는 것은 수업 종료 후 시간으로만 정해진다 (LATE_REPORT_TIERS · D-R32).
+      이 값은 「아직 안 쓴 회차」를 독촉 목록에 올리는 기준으로만 쓴다.       */
 const REPORT_DEADLINE_DAYS = 10;
 const deadlineOf = s => addDays(s.date, REPORT_DEADLINE_DAYS);
 const daysLeft   = s => diffDays(TODAY, deadlineOf(s));
@@ -100,49 +118,77 @@ const isOverdue  = s => !isCanceled(s) && isPast(s) && daysLeft(s) < 0;
 const missingReports  = () => SESS.filter(s => !isCanceled(s) && isPast(s) && (s.report === 'none' || s.report === 'draft'));
 const pendingReports  = () => SESS.filter(s => s.report === 'submitted');
 
-/* ── 리포트 지각 제출 차감 (V26 §4.2) ─────────────────────────────
-   기준 시각은 **수업일 + N일**. v20 의 연강 시계(chainOf / penaltyDeadlineBase)는 폐기했다.
+/* ── 리포트 지각 제출 차감 (2026-08-27 대표 결정 5번 · D-R32) ────────
+   원문: "리포트 지각 제출시 1시간 이상은 5,000원 차감 → 4시간 이상 10,000원 차감
+          (자동 회계 정산 및 급여 시수에 반영)"
 
-   ⚠️ 구간 금액은 **잠정**이다 — 결정 안건 D-13 (P0, PLANNING-REQUIRED.md).
-      권고안 ①(일수 구간별 정액)을 임시로 넣어 두었고, 확정되면 이 표 하나만 바꾼다.  */
-const LATE_REPORT_TIERS_PROVISIONAL = [
-  { afterDays: 0,  amount: 0,     short: '3일 이내',  say: '차감 없음',      tone: 'ok'   },
-  { afterDays: 3,  amount: 5000,  short: '3일 초과',  say: '− 5,000원',      tone: 'warn' },
-  { afterDays: 7,  amount: 10000, short: '7일 초과',  say: '− 10,000원',     tone: 'bad'  },
-  { afterDays: 10, amount: null,  short: '10일 초과', say: '정산에서 제외',  tone: 'bad'  },
+   ⚠️ 기준이 **날짜에서 시각으로** 바뀌었다.
+      v26: 수업일 + N일   →   확정: **수업 종료 시각 + N분**
+   두 구간뿐이고, 4시간을 넘어도 10,000원에서 더 늘지 않는다.
+   구간을 바꿀 일이 생기면 이 배열 하나만 고친다. (ARCHITECTURE.md R-4)          */
+const LATE_REPORT_TIERS = [
+  { fromMinutes: 240, amount: 10000, short: '4시간 이상', say: '− 10,000원', tone: 'bad'  },
+  { fromMinutes:  60, amount:  5000, short: '1시간 이상', say: '−  5,000원', tone: 'warn' },
+  { fromMinutes:   0, amount:     0, short: '1시간 이내', say: '차감 없음',  tone: 'ok'   },
 ];
-const PENALTY_RULE = LATE_REPORT_TIERS_PROVISIONAL.map(t => ({
-  when: t.short, short: t.short, amount: t.amount || 0, tone: t.tone, say: t.say,
+/* 표시용은 읽기 쉬운 순서(작은 것부터)로 뒤집어 둔다 — 판정은 위 배열이 한다 */
+const PENALTY_RULE = [...LATE_REPORT_TIERS].reverse().map(t => ({
+  when: t.short, short: t.short, amount: t.amount, tone: t.tone, say: t.say,
 }));
 
-/** 수업일로부터 며칠 지났을 때 얼마인가 */
-function tierFor(daysAfter) {
-  let hit = LATE_REPORT_TIERS_PROVISIONAL[0];
-  for (const t of LATE_REPORT_TIERS_PROVISIONAL) if (daysAfter > t.afterDays) hit = t;
-  return hit;
+/** 수업이 끝나고 몇 분 지났을 때 얼마인가 — 위에서부터 처음 걸리는 것 */
+function tierFor(minutesAfter) {
+  for (const t of LATE_REPORT_TIERS) if (minutesAfter >= t.fromMinutes) return t;
+  return LATE_REPORT_TIERS[LATE_REPORT_TIERS.length - 1];
 }
-/** 제출이 끝난 회차의 확정 차감액 */
+
+/** 수업 종료 → 그 시각까지 몇 분인가. 날짜가 다르면 하루 1440분으로 더한다 */
+function minutesSinceEnd(s, atDate, atMin) {
+  return diffDays(s.date, atDate) * 1440 + (atMin - endMin(s));
+}
+
+/** 제출이 끝난 회차의 확정 차감액 — 기준은 **최초 제출**이다.
+    반려 후 재제출은 다시 재지 않는다 (D-R7: 재승인으로 깎이지 않는다). */
 function latePenalty(s) {
   if (isCanceled(s) || !s.submittedAt) return 0;
-  const submitted = String(s.submittedAt).slice(0, 10);
-  return tierFor(diffDays(s.date, submitted)).amount || 0;
+  const at = String(s.submittedAt);
+  const d  = at.slice(0, 10);
+  const hm = at.length >= 16 ? toMin(at.slice(11, 16)) : 0;   // "YYYY-MM-DD HH:mm"
+  const after = minutesSinceEnd(s, d, hm);
+  return after <= 0 ? 0 : tierFor(after).amount;
 }
+
 /** 지금 제출하면 얼마가 깎이는지 — 리포트 화면이 실시간으로 읽는다 */
 function penaltyNow(s) {
-  const after = diffDays(s.date, TODAY);
+  const after = minutesSinceEnd(s, TODAY, NOW_MIN);
+  const t = after <= 0 ? LATE_REPORT_TIERS[LATE_REPORT_TIERS.length - 1] : tierFor(after);
   const left = daysLeft(s);
-  const t = tierFor(after);
-  if (left < 0) return { amount: 0, over: true, left,
-    head: `수업일로부터 ${after}일이 지나 이번 달 정산에서 빠집니다`, next: null };
-  const nextTier = LATE_REPORT_TIERS_PROVISIONAL.find(x => x.afterDays > after);
+
+  /* 아직 수업이 끝나지 않았다 */
+  if (after <= 0) {
+    return { amount: 0, over: false, left, after,
+      head: '수업이 끝나면 바로 쓸 수 있습니다 · 1시간 안에 내면 차감이 없습니다',
+      next: 5000, nextIn: 60, nextSay: '수업 종료 후 1시간이 지나면' };
+  }
+  /* 다음 구간까지 몇 분 남았나 — fromMinutes 가 지금보다 큰 것 중 가장 가까운 것 */
+  const upper = [...LATE_REPORT_TIERS].reverse().find(x => x.fromMinutes > after);
   return {
-    amount: t.amount || 0, over: false, left,
-    head: (t.amount ? `지금 제출하면 ${won(t.amount)}이 깎입니다` : '지금 제출하면 차감이 없습니다')
-          + ` · 기한까지 ${left}일`,
-    next: nextTier ? nextTier.amount : null,
-    nextIn: nextTier ? nextTier.afterDays - after : null,
+    amount: t.amount, over: false, left, after,
+    head: t.amount ? `지금 제출하면 ${won(t.amount)}이 깎입니다 · 수업이 끝난 지 ${sinceText(after)}`
+                   : `지금 제출하면 차감이 없습니다 · 수업이 끝난 지 ${sinceText(after)}`,
+    next:   upper ? upper.amount : null,
+    nextIn: upper ? upper.fromMinutes - after : null,
+    nextSay: upper ? `${Math.ceil((upper.fromMinutes - after) / 60 * 10) / 10}시간 더 지나면` : null,
   };
 }
+
+/** "2시간 15분" 처럼 읽어 준다 */
+function sinceText(min) {
+  if (min < 60) return `${min}분`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h}시간 ${m}분` : `${h}시간`;
+}
+
 /* v20 연강 개념은 v26 에 없다. 남아 있는 호출부를 위해 최소 형태만 남긴다. */
 function chainOf(s) { return { size: 1, index: 1, blockEnd: endMin(s) }; }
 function penaltyDeadlineBase(s) { return { chain: chainOf(s), baseMin: endMin(s) }; }
@@ -262,7 +308,8 @@ function contentChecks(t) {
 const canSeePeriod = p => p === LAST_PAYOUT.period || p === OPEN_PERIOD;
 
 /* ── 정산 (V26 §4) ────────────────────────────────────────────────
-   불변식 I-2 · 승인된 리포트(approved)만 들어간다. 미작성·draft·대기·반려는 제외.
+   불변식 I-2 · **쓴 리포트**가 들어간다 (D-R7). 미작성·draft 만 제외되고,
+                대기·반려도 이미 쓴 것이므로 정산에 들어간다.
    불변식 I-8 · 단가는 수업일 기준 시급 스냅샷. 이력이 정정돼도 지난 정산은 안 흔들린다.
    D-15      · 원천징수는 소득세·지방소득세를 따로 계산해 각각 절사한다.              */
 function settle(period) {
@@ -271,10 +318,10 @@ function settle(period) {
 
   const past = list.filter(s => !isCanceled(s) && isPast(s));
   const done = past.filter(countsForSettlement);                  // ← 유일한 판정
-  const miss = past.filter(s => !countsForSettlement(s));         // 미작성 · draft · 대기 · 반려
+  const miss = past.filter(s => !countsForSettlement(s));         // 미작성 · draft 만
   const wait = past.filter(s => s.report === 'submitted');
   const rej  = past.filter(s => s.report === 'rejected');
-  const over = past.filter(s => !countsForSettlement(s) && isOverdue(s));   // 승인된 건은 이미 들어갔다
+  const over = past.filter(s => !countsForSettlement(s) && isOverdue(s));   // 아직 안 쓴 채 기한이 지난 것
 
   const doneH = done.reduce((a, s) => a + s.dur, 0) / 60;
   const missH = miss.reduce((a, s) => a + s.dur, 0) / 60;
@@ -500,13 +547,18 @@ const attConfirmed = s => attendanceState(s) !== 'pending';
 const attCounts = s => attendanceState(s) === 'completed';
 
 /** 지금 이 사용자가 출결에 무엇을 할 수 있는가 — 화면마다 다시 쓰지 않는다 (A27) */
+/* 2026-08-27 대표 결정 6번 (D-R35) — "오늘 및 이전 스케줄에 대한 출결 사항은 매니저 이상만 CRUD"
+   강사에게 열어 두는 것은 **당일 최초 체크 딱 한 번**뿐이다.
+   지난 회차는 최초 체크조차 강사가 못 한다 — 매니저가 대신 찍는다.
+   화면 코드에서 me.role 을 직접 비교하지 않는다. 판정은 여기 한 곳이다. */
 function canEditAttendance(s, me = ME) {
   if (!s) return 'readonly';
-  if (me.role !== '강사') return 'manage';             // 매니저 이상은 언제든 정정
+  if (me.role !== '강사') return 'manage';             // 매니저 이상은 언제든 정정 (canCrudAll)
   if (isCanceled(s)) return 'readonly';                // 관리자 취소분은 손대지 않는다
-  if (!isPast(s)) return 'readonly';                   // 아직 안 끝났다
+  if (!isPast(s)) return 'readonly';                   // 아직 안 끝났다 — 출결이 없다
+  if (s.date !== TODAY) return 'readonly';             // ← 지난 회차는 매니저만 (D-R35)
   if (s.att || s.statusChanged) return 'readonly';     // 이미 한 번 찍혔다
-  return 'first';                                      // 지금 딱 한 번
+  return 'first';                                      // 오늘, 지금, 딱 한 번
 }
 
 /** 강사 1차 체크 — 성공하면 {ok:true}, 아니면 이유를 돌려준다 (서버가 같은 판정을 다시 한다) */
@@ -514,6 +566,7 @@ function firstCheck(s, result) {
   const can = canEditAttendance(s);
   if (can === 'readonly') {
     if (!isPast(s)) return { ok: false, msg: '수업이 끝난 뒤에 체크할 수 있습니다' };
+    if (s.date !== TODAY) return { ok: false, msg: '지난 수업의 출결은 매니저가 처리합니다' };   // D-R35
     return { ok: false, msg: '이미 체크된 출결입니다 — 정정은 매니저에게 요청하세요' };
   }
   if (can === 'manage') return { ok: false, msg: '매니저 정정 경로로 처리하세요' };
@@ -537,5 +590,6 @@ function attendanceLockNote(s) {
   if (s.att) return `${s.att.by} 님이 ${s.att.at}에 ${s.att.result === 'completed' ? '완료' : '취소'}로 확정했습니다`;
   if (s.statusChanged) return `${s.statusChanged.by} 님이 ${s.statusChanged.at}에 처리했습니다 · 강사 확인 없음`;
   if (!isPast(s)) return '수업이 끝나면 체크할 수 있습니다';
+  if (s.date !== TODAY) return '지난 수업의 출결은 매니저가 처리합니다';   // D-R35
   return '';
 }

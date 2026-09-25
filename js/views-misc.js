@@ -147,25 +147,25 @@ VIEWS.history = function () {
         <div class="l"><span>지방소득세 <span style="color:#64748b">소득세의 10%</span></span>
           <b style="color:#fca5a5">− ${won(r.localTax)}</b></div>
         <div class="tot"><span>${tab === 'last' ? '실지급액' : '실지급 예정액'}</span><b class="num">${won(r.net)}</b></div>
-        ${r.missH ? `<div class="warn"><span>⚠ 리포트가 승인되지 않은 수업 ${r.miss.length}건 · ${r.missH}시간은 아직 빠져 있습니다</span>
+        ${r.missH ? `<div class="warn"><span>⚠ 리포트를 아직 안 쓴 수업 ${r.miss.length}건 · ${r.missH}시간은 빠져 있습니다</span>
           <b>${won(r.missAmount)}</b></div>` : ''}
-        ${r.over.length ? `<div class="warn"><span>⏱ 10일이 지난 수업 ${r.over.length}건은 이번 달 정산에서 제외됩니다</span>
+        ${r.over.length ? `<div class="warn"><span>⏱ 기한이 지나도록 안 쓴 수업 ${r.over.length}건 — 지금이라도 쓰면 들어갑니다</span>
           <b>${won(r.over.reduce((a, s) => a + sessionPay(s).amount, 0))}</b></div>` : ''}
         <div class="note" style="color:#64748b;margin-top:9px">
           ${tab === 'last' ? `이 급여에 포함된 수업 ${r.held.length}건만 아래에 표시됩니다.`
             : `이 달 남은 예정 수업 ${r.future.length}건 · ${r.futureH}시간 (예상 ${won(r.futureAmount)})`}</div>
-        <div class="note" style="color:#64748b;margin-top:4px">승인된 리포트만 정산에 들어갑니다 — 미작성 · 승인 대기 · 반려는 제외됩니다.</div>
+        <div class="note" style="color:#64748b;margin-top:4px"><b>쓴 리포트가 정산에 들어갑니다</b> — 승인 대기 · 반려도 포함되고, 미작성만 빠집니다.</div>
       </div>
       ${rateSystemCard()}
       <div class="card pad" style="background:var(--amber-soft);border-color:var(--amber-line)">
-        <b style="font-size:12.5px">리포트 지각 차감 · 수업일 기준 <span class="chip amber">잠정</span></b>
+        <b style="font-size:12.5px">리포트 지각 차감 · <b>수업 종료 시각</b> 기준 <span class="chip green">확정</span></b>
         ${PENALTY_RULE.map(x => `<div class="row nowrap" style="margin-top:7px">
           <span class="sp" style="font-size:12px">${x.when}</span>
           <span class="chip ${x.tone === 'ok' ? 'green' : x.tone === 'warn' ? 'amber' : 'red'}">${x.say}</span></div>`).join('')}
         <div class="note" style="color:var(--amber);margin-top:9px">
-          <b>수업일</b>부터 셉니다. 열흘 안에 쓰면 그 달 정산에 들어가고, 넘기면 다음 달로 밀립니다.
-          차감이 붙어도 <b>리포트는 결국 반드시 써야 합니다</b> — 승인된 리포트만 정산에 들어가기 때문입니다.
-          <span style="opacity:.75">구간 금액은 잠정입니다 (결정 안건 D-13).</span></div>
+          <b>수업이 끝난 시각</b>부터 셉니다. 4시간을 넘겨도 10,000원에서 더 늘지 않습니다.
+          차감은 회계 정산과 급여 시수에 <b>자동으로</b> 반영됩니다.
+          <span style="opacity:.75">2026-08-27 대표 결정 (D-R32).</span></div>
       </div>
       <div class="locked">
         <div class="ic">🔒</div>
